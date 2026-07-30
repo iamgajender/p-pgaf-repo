@@ -2,6 +2,10 @@ from flask import Blueprint
 from flask import request
 from flask import jsonify
 
+import subprocess
+import json
+import os
+
 from utils.inventory_generator import generate_inventory
 from utils.groupvars_generator import generate_group_vars
 from utils.output_writer import write_deployment_output
@@ -52,10 +56,87 @@ def install_postgresql():
     print(data)
     print("=" * 70)
 
+    #
+    # Run PostgreSQL Installation Playbook
+    #
+    install = subprocess.run(
+        [
+            "ansible-playbook",
+            "standalone.yml"
+        ],
+        cwd="/opt/pg_sa/pg_an",
+        capture_output=True,
+        text=True
+    )
+
+    #
+    # Installation Failed
+    #
+    if install.returncode != 0:
+
+        return jsonify({
+
+            "status": "failed",
+
+            "message": "PostgreSQL installation failed.",
+
+            "stdout": install.stdout,
+
+            "stderr": install.stderr
+
+        }), 500
+
+    #
+    # Run PostgreSQL Information Collection Playbook
+    #
+    collect = subprocess.run(
+        [
+            "ansible-playbook",
+            "collect_info.yml"
+        ],
+        cwd="/opt/pg_sa/pg_an",
+        capture_output=True,
+        text=True
+    )
+
+    #
+    # Collection Failed
+    #
+    if collect.returncode != 0:
+
+        return jsonify({
+
+            "status": "failed",
+
+            "message": "Unable to collect PostgreSQL information.",
+
+            "stdout": collect.stdout,
+
+            "stderr": collect.stderr
+
+        }), 500
+
+    #
+    # Read Generated JSON
+    #
+    summary = {}
+
+    summary_file = "/tmp/postgres_summary.json"
+
+    if os.path.exists(summary_file):
+
+        with open(summary_file, "r") as f:
+            summary = json.load(f)
+
+    #
+    # Success Response
+    #
     return jsonify({
 
         "status": "success",
 
-        "message": "Ansible inventory and group_vars generated successfully."
+        "message": "PostgreSQL installed successfully.",
+
+        "summary": summary
 
     }), 200

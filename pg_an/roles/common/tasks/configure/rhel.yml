@@ -1,0 +1,40 @@
+---
+- name: Ensure PostgreSQL loads conf.d
+  lineinfile:
+    path: "{{ postgres_config_directory }}/postgresql.conf"
+    regexp: '^#?include_dir'
+    line: "include_dir = 'conf.d'"
+    insertafter: EOF
+
+  notify: Restart PostgreSQL
+
+- name: Ensure PostgreSQL conf.d directory exists
+  file:
+    path: "{{ postgres_conf_d_directory }}"
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: "0755"
+
+- name: Deploy PostgreSQL configuration files
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ postgres_conf_d_directory }}/{{ item.dest }}"
+    owner: postgres
+    group: postgres
+    mode: "0644"
+
+  loop:
+    - src: "10-network.conf.j2"
+      dest: "10-network.conf"
+
+    - src: "20-replication.conf.j2"
+      dest: "20-replication.conf"
+
+    - src: "30-memory.conf.j2"
+      dest: "30-memory.conf"
+
+    - src: "40-logging.conf.j2"
+      dest: "40-logging.conf"
+
+  notify: Restart PostgreSQL

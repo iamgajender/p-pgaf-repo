@@ -1,0 +1,10 @@
+---
+- import_tasks: repo/rhel.yml
+
+- import_tasks: packages/rhel.yml
+
+- import_tasks: memory_tuning/ubuntu.yml
+
+- import_tasks: configure/rhel.yml
+
+- import_tasks: validate/rhel.yml

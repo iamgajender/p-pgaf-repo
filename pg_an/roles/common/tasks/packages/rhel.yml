@@ -1,0 +1,7 @@
+---
+- name: Install PostgreSQL
+  dnf:
+    name:
+      - "postgresql{{ postgres_version }}-server"
+      - "postgresql{{ postgres_version }}"
+    state: present
