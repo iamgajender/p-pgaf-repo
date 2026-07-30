@@ -1,0 +1,10 @@
+---
+- import_tasks: repo/ubuntu.yml
+
+- import_tasks: packages/ubuntu.yml
+
+- import_tasks: memory_tuning/ubuntu.yml
+
+- import_tasks: configure/ubuntu.yml
+
+- import_tasks: validate/ubuntu.yml

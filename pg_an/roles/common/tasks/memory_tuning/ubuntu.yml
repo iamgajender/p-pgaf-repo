@@ -1,0 +1,26 @@
+---
+- name: Get total RAM
+  set_fact:
+    total_ram_mb: "{{ ansible_memtotal_mb }}"
+
+- name: Calculate PostgreSQL memory values
+  set_fact:
+
+    shared_buffers: "{{ (total_ram_mb * 0.25) | int }}MB"
+
+    effective_cache_size: "{{ (total_ram_mb * 0.75) | int }}MB"
+
+    maintenance_work_mem: "{{ [((total_ram_mb * 0.05) | int), 2048] | min }}MB"
+
+    work_mem: >-
+      {{
+      (
+      (
+      total_ram_mb * 0.25
+      )
+      /
+      (
+      max_connections * 2
+      )
+      ) | int
+      }}MB

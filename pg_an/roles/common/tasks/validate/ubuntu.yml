@@ -1,0 +1,8 @@
+---
+- name: Check PostgreSQL version
+  command: "psql --version"
+  register: postgres_version_output
+  changed_when: false
+
+- debug:
+    var: postgres_version_output.stdout
