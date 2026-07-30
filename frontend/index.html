@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>PostgreSQL Automation Portal</title>
+
+    <link rel="stylesheet" href="css/style.css">
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>PostgreSQL Automation Portal</h1>
+
+    <div class="warning">
+
+        <strong>Prerequisites</strong>
+
+        <ul>
+
+            <li>Ensure the target server is reachable.</li>
+
+            <li>Ensure SSH service is running on the target server.</li>
+
+            <li>Ensure the Ansible Automation Server has passwordless SSH access (recommended for production) or valid SSH credentials.</li>
+
+            <li>Ensure Python 3 is installed on the target server.</li>
+
+        </ul>
+
+    </div>
+
+    <h2>Standalone PostgreSQL Installation</h2>
+
+    <label>Server IP Address</label>
+
+    <input
+        type="text"
+        id="server_ip"
+        placeholder="10.0.2.100"
+    >
+
+    <label>SSH Username</label>
+
+    <input
+        type="text"
+        id="ssh_user"
+        value="root"
+    >
+
+    <label>SSH Password</label>
+
+    <input
+        type="password"
+        id="ssh_password"
+        placeholder="Enter SSH Password"
+    >
+
+    <label>PostgreSQL Version</label>
+
+    <select id="postgres_version">
+
+        <option value="">Select Version</option>
+
+        <option value="16">PostgreSQL 16</option>
+
+        <option value="17">PostgreSQL 17</option>
+
+        <option value="18">PostgreSQL 18</option>
+
+    </select>
+
+    <button onclick="installPostgres()">
+
+        Install PostgreSQL
+
+    </button>
+
+    <div class="status">
+
+        <h3>Deployment Status</h3>
+
+        <p id="status">
+
+            Ready to Deploy...
+
+        </p>
+
+    </div>
+
+</div>
+
+<script src="js/app.js"></script>
+
+</body>
+
+</html>
