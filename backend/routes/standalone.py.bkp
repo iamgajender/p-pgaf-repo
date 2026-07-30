@@ -57,13 +57,10 @@ def install_postgresql():
     print("=" * 70)
 
     #
-    # Run PostgreSQL Installation Playbook
+    # Run PostgreSQL Installation
     #
     install = subprocess.run(
-        [
-            "ansible-playbook",
-            "standalone.yml"
-        ],
+        ["ansible-playbook", "standalone.yml"],
         cwd="/opt/pg_sa/pg_an",
         capture_output=True,
         text=True
@@ -72,19 +69,14 @@ def install_postgresql():
     if install.returncode != 0:
         return jsonify({
             "status": "failed",
-            "message": "PostgreSQL installation failed.",
-            "stdout": install.stdout,
-            "stderr": install.stderr
+            "message": install.stderr
         }), 500
 
     #
-    # Run PostgreSQL Information Collection Playbook
+    # Collect PostgreSQL Information
     #
     collect = subprocess.run(
-        [
-            "ansible-playbook",
-            "collect_info.yml"
-        ],
+        ["ansible-playbook", "collect_info.yml"],
         cwd="/opt/pg_sa/pg_an",
         capture_output=True,
         text=True
@@ -93,27 +85,27 @@ def install_postgresql():
     if collect.returncode != 0:
         return jsonify({
             "status": "failed",
-            "message": "Unable to collect PostgreSQL information.",
-            "stdout": collect.stdout,
-            "stderr": collect.stderr
+            "message": collect.stderr
         }), 500
 
     #
-    # Read collected PostgreSQL information
+    # Read generated JSON
     #
     summary = {}
 
     summary_file = "/tmp/postgres_summary.json"
 
     if os.path.exists(summary_file):
+
         with open(summary_file, "r") as f:
             summary = json.load(f)
 
-    #
-    # Success Response
-    #
     return jsonify({
+
         "status": "success",
+
         "message": "PostgreSQL installed successfully.",
+
         "summary": summary
+
     }), 200
