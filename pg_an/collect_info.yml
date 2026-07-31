@@ -40,16 +40,18 @@
       register: pg_settings
       changed_when: false
 
-    - name: Save JSON
+    - name: Save PostgreSQL summary on Ansible Controller
       copy:
         dest: /tmp/postgres_summary.json
         content: |
           {
-            "hostname":"{{ hostname_out.stdout }}",
-            "postgres_version":"{{ pg_version.stdout }}",
-            "settings":[
+            "hostname": "{{ hostname_out.stdout }}",
+            "postgres_version": "{{ pg_version.stdout }}",
+            "settings": [
             {% for item in pg_settings.stdout_lines %}
               "{{ item }}"{% if not loop.last %},{% endif %}
             {% endfor %}
             ]
           }
+      delegate_to: localhost
+      become: false

@@ -2,6 +2,8 @@ from flask import Blueprint
 from flask import request
 from flask import jsonify
 
+
+import shutil
 import subprocess
 import json
 import os
@@ -9,6 +11,11 @@ import os
 from utils.inventory_generator import generate_inventory
 from utils.groupvars_generator import generate_group_vars
 from utils.output_writer import write_deployment_output
+from utils.logger import (
+    backend_logger,
+    ansible_logger,
+    deployment_logger
+)
 
 
 standalone_bp = Blueprint(
@@ -69,6 +76,13 @@ def install_postgresql():
         #
         # Run PostgreSQL Installation Playbook
         #
+        backend_logger.info(f"PWD: {os.getcwd()}")
+        backend_logger.info(f"HOME: {os.environ.get('HOME')}")
+        backend_logger.info(f"PATH: {os.environ.get('PATH')}")
+        backend_logger.info(f"SSH: {shutil.which('ssh')}")
+        backend_logger.info(f"ANSIBLE: {shutil.which('ansible-playbook')}")
+
+
         install = subprocess.run(
             [
                 ANSIBLE_PLAYBOOK,
@@ -79,7 +93,22 @@ def install_postgresql():
             text=True
         )
 
+        ansible_logger.info("=" * 80)
+        ansible_logger.info("INSTALL STDOUT")
+        ansible_logger.info(install.stdout)
+
+        ansible_logger.info("=" * 80)
+        ansible_logger.info("INSTALL STDERR")
+        ansible_logger.info(install.stderr)
+
+        ansible_logger.info("=" * 80)
+        ansible_logger.info(f"RETURN CODE : {install.returncode}")
+
         if install.returncode != 0:
+
+            deployment_logger.error(
+                f"FAILED | Server={server_ip} | PostgreSQL={postgres_version}"
+            )
 
             return jsonify({
 
@@ -106,7 +135,22 @@ def install_postgresql():
             text=True
         )
 
+        ansible_logger.info("=" * 80)
+        ansible_logger.info("COLLECT INFO STDOUT")
+        ansible_logger.info(collect.stdout)
+
+        ansible_logger.info("=" * 80)
+        ansible_logger.info("COLLECT INFO STDERR")
+        ansible_logger.info(collect.stderr)
+
+        ansible_logger.info("=" * 80)
+        ansible_logger.info(f"RETURN CODE : {collect.returncode}")
+
         if collect.returncode != 0:
+
+            deployment_logger.error(
+                f"FAILED | Server={server_ip} | PostgreSQL={postgres_version}"
+            )
 
             return jsonify({
 
@@ -131,6 +175,10 @@ def install_postgresql():
 
                 summary = json.load(file)
 
+        deployment_logger.info(
+            f"SUCCESS | Server={server_ip} | PostgreSQL={postgres_version}"
+        )
+
         #
         # Success
         #
@@ -145,6 +193,8 @@ def install_postgresql():
         }), 200
 
     except Exception as e:
+
+        backend_logger.exception(e)
 
         return jsonify({
 

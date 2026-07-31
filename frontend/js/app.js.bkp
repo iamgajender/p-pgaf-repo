@@ -3,8 +3,11 @@ async function installPostgres() {
     const deployment = {
 
         server_ip: document.getElementById("server_ip").value,
+
         ssh_user: document.getElementById("ssh_user").value,
+
         ssh_password: document.getElementById("ssh_password").value,
+
         postgres_version: document.getElementById("postgres_version").value
 
     };
@@ -13,47 +16,75 @@ async function installPostgres() {
 
     status.textContent = "Starting deployment...";
 
-    // Start polling immediately
     const timer = setInterval(loadDeploymentLog, 2000);
+    try {
 
-    // Fire the install request WITHOUT waiting
-    fetch("/install", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify(deployment)
-    })
-    .then(async (response) => {
+        const response = await fetch("/install", {
 
-        clearInterval(timer);
+            method: "POST",
+
+            headers: {
+
+                "Content-Type": "application/json"
+
+            },
+
+            body: JSON.stringify(deployment)
+
+        });
 
         const result = await response.json();
+	clearInterval(timer);
 
+        console.log(result);
+
+        //
+        // Installation Failed
+        //
         if (result.status !== "success") {
 
             status.innerHTML = `
+
                 <h3 style="color:red;">❌ ${result.message}</h3>
+
                 <pre>${result.stderr || ""}</pre>
+
             `;
 
             return;
         }
 
+        //
+        // Build Success HTML
+        //
         let html = `
-            <h3 style="color:green;">✅ ${result.message}</h3>
+
+            <h3 style="color:green;">
+                ✅ ${result.message}
+            </h3>
+
             <hr>
+
             <h3>Server Information</h3>
 
             <table class="summary-table">
+
                 <tr>
+
                     <td><strong>Hostname</strong></td>
+
                     <td>${result.summary.hostname}</td>
+
                 </tr>
+
                 <tr>
+
                     <td><strong>PostgreSQL Version</strong></td>
+
                     <td>${result.summary.postgres_version}</td>
+
                 </tr>
+
             </table>
 
             <hr>
@@ -61,10 +92,15 @@ async function installPostgres() {
             <h3>PostgreSQL Configuration</h3>
 
             <table class="summary-table">
+
                 <tr>
+
                     <th>Parameter</th>
+
                     <th>Value</th>
+
                 </tr>
+
         `;
 
         result.summary.settings.forEach(setting => {
@@ -72,10 +108,15 @@ async function installPostgres() {
             const parts = setting.split("=");
 
             html += `
+
                 <tr>
+
                     <td>${parts[0]}</td>
+
                     <td>${parts[1]}</td>
+
                 </tr>
+
             `;
 
         });
@@ -84,18 +125,18 @@ async function installPostgres() {
 
         status.innerHTML = html;
 
-    })
-    .catch(error => {
+    }
 
-        clearInterval(timer);
+    catch (error) {
 
         console.error(error);
 
         status.innerHTML = "Unable to reach Backend Server.";
 
-    });
+    }
 
 }
+
 
 
 
@@ -124,4 +165,3 @@ async function loadDeploymentLog() {
     }
 
 }
-
