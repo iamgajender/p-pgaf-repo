@@ -247,3 +247,140 @@ PLAY RECAP *********************************************************************
 2026-07-31 06:58:10,620 | INFO | 
 2026-07-31 06:58:10,620 | INFO | ================================================================================
 2026-07-31 06:58:10,620 | INFO | RETURN CODE : 4
+2026-07-31 10:22:57,406 | INFO | ================================================================================
+2026-07-31 10:22:57,406 | INFO | INSTALL STDOUT
+2026-07-31 10:22:57,406 | INFO | 
+PLAY [all] *********************************************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [10.1.1.12]
+
+TASK [common : Install repository prerequisites] *******************************
+ok: [10.1.1.12]
+
+TASK [common : Create PGDG key directory] **************************************
+changed: [10.1.1.12]
+
+TASK [common : Download PGDG signing key] **************************************
+changed: [10.1.1.12]
+
+TASK [common : Add PostgreSQL repository] **************************************
+changed: [10.1.1.12]
+
+TASK [common : Update package cache] *******************************************
+changed: [10.1.1.12]
+
+TASK [common : Install PostgreSQL] *********************************************
+changed: [10.1.1.12]
+
+TASK [common : Get total RAM] **************************************************
+ok: [10.1.1.12]
+
+TASK [common : Calculate PostgreSQL memory values] *****************************
+ok: [10.1.1.12]
+
+TASK [common : Ensure PostgreSQL conf.d directory exists] **********************
+ok: [10.1.1.12]
+
+TASK [common : Deploy PostgreSQL configuration files] **************************
+changed: [10.1.1.12] => (item={'src': '10-network.conf.j2', 'dest': '10-network.conf'})
+changed: [10.1.1.12] => (item={'src': '20-replication.conf.j2', 'dest': '20-replication.conf'})
+changed: [10.1.1.12] => (item={'src': '30-memory.conf.j2', 'dest': '30-memory.conf'})
+changed: [10.1.1.12] => (item={'src': '40-logging.conf.j2', 'dest': '40-logging.conf'})
+
+TASK [common : Check PostgreSQL version] ***************************************
+ok: [10.1.1.12]
+
+TASK [common : debug] **********************************************************
+ok: [10.1.1.12] => {
+    "postgres_version_output.stdout": "psql (PostgreSQL) 17.10 (Ubuntu 17.10-1.pgdg24.04+1)"
+}
+
+TASK [common : Install repository packages] ************************************
+skipping: [10.1.1.12]
+
+TASK [common : Disable built-in PostgreSQL module] *****************************
+skipping: [10.1.1.12]
+
+TASK [common : Install PGDG repository] ****************************************
+skipping: [10.1.1.12]
+
+TASK [common : Update package cache] *******************************************
+skipping: [10.1.1.12]
+
+TASK [common : Install PostgreSQL] *********************************************
+skipping: [10.1.1.12]
+
+TASK [common : Get total RAM] **************************************************
+skipping: [10.1.1.12]
+
+TASK [common : Calculate PostgreSQL memory values] *****************************
+skipping: [10.1.1.12]
+
+TASK [common : Ensure PostgreSQL loads conf.d] *********************************
+skipping: [10.1.1.12]
+
+TASK [common : Ensure PostgreSQL conf.d directory exists] **********************
+skipping: [10.1.1.12]
+
+TASK [common : Deploy PostgreSQL configuration files] **************************
+skipping: [10.1.1.12] => (item={'src': '10-network.conf.j2', 'dest': '10-network.conf'}) 
+skipping: [10.1.1.12] => (item={'src': '20-replication.conf.j2', 'dest': '20-replication.conf'}) 
+skipping: [10.1.1.12] => (item={'src': '30-memory.conf.j2', 'dest': '30-memory.conf'}) 
+skipping: [10.1.1.12] => (item={'src': '40-logging.conf.j2', 'dest': '40-logging.conf'}) 
+skipping: [10.1.1.12]
+
+TASK [common : Check PostgreSQL version] ***************************************
+skipping: [10.1.1.12]
+
+TASK [common : debug] **********************************************************
+skipping: [10.1.1.12]
+
+RUNNING HANDLER [common : Restart PostgreSQL] **********************************
+changed: [10.1.1.12]
+
+PLAY RECAP *********************************************************************
+10.1.1.12                  : ok=14   changed=7    unreachable=0    failed=0    skipped=12   rescued=0    ignored=0   
+
+
+2026-07-31 10:22:57,406 | INFO | ================================================================================
+2026-07-31 10:22:57,406 | INFO | INSTALL STDERR
+2026-07-31 10:22:57,406 | INFO | 
+2026-07-31 10:22:57,406 | INFO | ================================================================================
+2026-07-31 10:22:57,406 | INFO | RETURN CODE : 0
+2026-07-31 10:23:01,962 | INFO | ================================================================================
+2026-07-31 10:23:01,962 | INFO | COLLECT INFO STDOUT
+2026-07-31 10:23:01,962 | INFO | 
+PLAY [all] *********************************************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [10.1.1.12]
+
+TASK [Hostname] ****************************************************************
+ok: [10.1.1.12]
+
+TASK [OS] **********************************************************************
+ok: [10.1.1.12]
+
+TASK [PostgreSQL Version] ******************************************************
+ok: [10.1.1.12]
+
+TASK [PostgreSQL Configuration] ************************************************
+ok: [10.1.1.12]
+
+TASK [Save JSON] ***************************************************************
+changed: [10.1.1.12]
+
+PLAY RECAP *********************************************************************
+10.1.1.12                  : ok=6    changed=1    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+
+
+2026-07-31 10:23:01,962 | INFO | ================================================================================
+2026-07-31 10:23:01,962 | INFO | COLLECT INFO STDERR
+2026-07-31 10:23:01,962 | INFO | [WARNING]: Module remote_tmp /var/lib/postgresql/.ansible/tmp did not exist and
+was created with a mode of 0700, this may cause issues when running as another
+user. To avoid this, create the remote_tmp dir with the correct permissions
+manually
+
+2026-07-31 10:23:01,962 | INFO | ================================================================================
+2026-07-31 10:23:01,962 | INFO | RETURN CODE : 0
