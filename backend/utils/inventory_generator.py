@@ -15,8 +15,6 @@ def generate_inventory(server_ip, ssh_user, ssh_password):
 {server_ip}
 
 [all:vars]
-ansible_user={ssh_user}
-ansible_password={ssh_password}
 ansible_python_interpreter=/usr/bin/python3
 """
 

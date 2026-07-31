@@ -1,3 +1,3 @@
-postgres_version: 18
+postgres_version: 16
 postgres_port: 5432
-postgres_data_directory: /var/lib/postgresql/18/main
+postgres_data_directory: /var/lib/postgresql/16/main

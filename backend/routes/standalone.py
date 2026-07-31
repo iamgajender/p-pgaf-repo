@@ -2,6 +2,8 @@ from flask import Blueprint
 from flask import request
 from flask import jsonify
 
+
+import shutil
 import subprocess
 import json
 import os
@@ -74,6 +76,13 @@ def install_postgresql():
         #
         # Run PostgreSQL Installation Playbook
         #
+        backend_logger.info(f"PWD: {os.getcwd()}")
+        backend_logger.info(f"HOME: {os.environ.get('HOME')}")
+        backend_logger.info(f"PATH: {os.environ.get('PATH')}")
+        backend_logger.info(f"SSH: {shutil.which('ssh')}")
+        backend_logger.info(f"ANSIBLE: {shutil.which('ansible-playbook')}")
+
+
         install = subprocess.run(
             [
                 ANSIBLE_PLAYBOOK,
