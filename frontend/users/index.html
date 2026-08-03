@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management — PostgreSQL Automation Portal</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+</head>
+
+<body>
+
+<div class="sidebar">
+    <div class="logo">
+        <img src="../images/postgres.png">
+        <h2>PostgreSQL</h2>
+        <span>Automation Portal</span>
+    </div>
+    <ul>
+        <li>
+            <a href="../index.html">
+                <i class="fa-solid fa-house"></i>
+                Dashboard
+            </a>
+        </li>
+        <li>
+            <a href="../standalone/install.html">
+                <i class="fa-solid fa-server"></i>
+                Standalone Installation
+            </a>
+        </li>
+        <li class="active">
+            <a href="index.html">
+                <i class="fa-solid fa-users"></i>
+                User Management
+            </a>
+        </li>
+        <li>
+            <a href="#">
+                <i class="fa-solid fa-network-wired"></i>
+                High Availability
+            </a>
+        </li>
+    </ul>
+</div>
+
+<div class="main">
+    <header>
+        <h1>User Management</h1>
+        <div class="profile">
+            <i class="fa-solid fa-circle-user"></i>
+            Administrator
+        </div>
+    </header>
+
+    <!-- ============ Connection panel ============ -->
+    <div class="result-panel" id="connection-panel">
+        <h3>Database Connection</h3>
+        <form id="connect-form" onsubmit="event.preventDefault(); connectDatabase();" autocomplete="off">
+            <div class="form-grid">
+                <div class="form-field">
+                    <label for="server_ip">Server IP Address</label>
+                    <input type="text" id="server_ip" placeholder="192.168.1.10"
+                           pattern="^(\d{1,3}\.){3}\d{1,3}$" title="Enter a valid IPv4 address"
+                           required autocomplete="off">
+                </div>
+
+                <div class="form-field">
+                    <label for="server_port">Port</label>
+                    <input type="number" id="server_port" placeholder="5432" value="5432"
+                           min="1" max="65535" required>
+                </div>
+
+                <div class="form-field">
+                    <label for="db_name">Database</label>
+                    <input type="text" id="db_name" placeholder="postgres" value="postgres" required>
+                </div>
+
+                <div class="form-field">
+                    <label for="db_username">Superuser Username</label>
+                    <input type="text" id="db_username" placeholder="postgres" required autocomplete="off">
+                </div>
+
+                <div class="form-field">
+                    <label for="db_password">Superuser Password</label>
+                    <input type="password" id="db_password" placeholder="••••••••"
+                           required autocomplete="new-password">
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="connect-btn">
+                <i class="fa-solid fa-plug"></i>
+                Connect
+            </button>
+        </form>
+
+        <div id="connection-status" class="connection-status" hidden></div>
+    </div>
+
+    <!-- ============ Actions (revealed after a successful connect) ============ -->
+    <div id="user-actions" hidden>
+        <h2 class="section-title">User Actions</h2>
+        <div class="cards">
+            <div class="card card--action">
+                <i class="fa-solid fa-user-plus"></i>
+                <h3>Create User</h3>
+                <p>Add a new PostgreSQL role with login and privilege options.</p>
+                <button type="button" class="btn btn-primary" onclick="openModal('modal-create')">
+                    Create User
+                </button>
+            </div>
+
+            <div class="card card--action">
+                <i class="fa-solid fa-user-pen"></i>
+                <h3>Modify User</h3>
+                <p>Change a role's password, login, or superuser status.</p>
+                <button type="button" class="btn btn-primary" onclick="openModal('modal-modify')">
+                    Modify User
+                </button>
+            </div>
+
+            <div class="card card--action">
+                <i class="fa-solid fa-user-shield"></i>
+                <h3>User Privileges</h3>
+                <p>Grant or revoke database privileges for a role.</p>
+                <button type="button" class="btn btn-primary" onclick="openModal('modal-privileges')">
+                    Manage Privileges
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <footer>© 2026 PostgreSQL Automation Portal</footer>
+</div>
+
+<!-- ============ Modal: Create User ============ -->
+<div class="modal-overlay" id="modal-create" hidden>
+    <div class="modal">
+        <h3>Create User</h3>
+        <form onsubmit="event.preventDefault(); createUser();">
+            <div class="form-field">
+                <label for="new_username">Username</label>
+                <input type="text" id="new_username" required autocomplete="off">
+            </div>
+            <div class="form-field">
+                <label for="new_password">Password</label>
+                <input type="password" id="new_password" required autocomplete="new-password">
+            </div>
+            <div class="checkbox-row">
+                <input type="checkbox" id="new_can_login" checked>
+                <label for="new_can_login">Can login</label>
+            </div>
+            <div class="checkbox-row">
+                <input type="checkbox" id="new_superuser">
+                <label for="new_superuser">Superuser</label>
+            </div>
+            <div class="checkbox-row">
+                <input type="checkbox" id="new_createdb">
+                <label for="new_createdb">Can create databases</label>
+            </div>
+            <div id="create-status" class="modal-status" hidden></div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-outline" onclick="closeModal('modal-create')">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="create-submit-btn">Create</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ============ Modal: Modify User ============ -->
+<div class="modal-overlay" id="modal-modify" hidden>
+    <div class="modal">
+        <h3>Modify User</h3>
+        <form onsubmit="event.preventDefault(); modifyUser();">
+            <div class="form-field">
+                <label for="modify_username">Username</label>
+                <select id="modify_username" required></select>
+            </div>
+            <div class="form-field">
+                <label for="modify_password">New Password <span class="field-hint">(leave blank to keep current)</span></label>
+                <input type="password" id="modify_password" autocomplete="new-password">
+            </div>
+            <div class="checkbox-row">
+                <input type="checkbox" id="modify_can_login">
+                <label for="modify_can_login">Can login</label>
+            </div>
+            <div class="checkbox-row">
+                <input type="checkbox" id="modify_superuser">
+                <label for="modify_superuser">Superuser</label>
+            </div>
+            <div id="modify-status" class="modal-status" hidden></div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-outline" onclick="closeModal('modal-modify')">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="modify-submit-btn">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ============ Modal: User Privileges ============ -->
+<div class="modal-overlay" id="modal-privileges" hidden>
+    <div class="modal">
+        <h3>User Privileges</h3>
+        <form onsubmit="event.preventDefault(); updatePrivileges();">
+            <div class="form-field">
+                <label for="priv_username">Username</label>
+                <select id="priv_username" required></select>
+            </div>
+            <div class="form-field">
+                <label for="priv_database">Database</label>
+                <input type="text" id="priv_database" placeholder="postgres" required>
+            </div>
+            <div class="form-field">
+                <label for="priv_action">Action</label>
+                <select id="priv_action" required>
+                    <option value="grant">Grant</option>
+                    <option value="revoke">Revoke</option>
+                </select>
+            </div>
+            <div class="checkbox-row">
+                <input type="checkbox" id="priv_select" checked>
+                <label for="priv_select">SELECT</label>
+            </div>
+            <div class="checkbox-row">
+                <input type="checkbox" id="priv_insert">
+                <label for="priv_insert">INSERT</label>
+            </div>
+            <div class="checkbox-row">
+                <input type="checkbox" id="priv_update">
+                <label for="priv_update">UPDATE</label>
+            </div>
+            <div class="checkbox-row">
+                <input type="checkbox" id="priv_delete">
+                <label for="priv_delete">DELETE</label>
+            </div>
+            <div class="checkbox-row">
+                <input type="checkbox" id="priv_all">
+                <label for="priv_all">ALL PRIVILEGES</label>
+            </div>
+            <div id="privileges-status" class="modal-status" hidden></div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-outline" onclick="closeModal('modal-privileges')">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="privileges-submit-btn">Apply</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="../js/users.js"></script>
+</body>
+</html>

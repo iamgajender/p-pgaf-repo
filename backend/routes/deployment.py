@@ -4,7 +4,8 @@ import os
 
 deployment_bp = Blueprint(
     "deployment",
-    __name__
+    __name__,
+    url_prefix="/api/deployment"
 )
 
 ANSIBLE_LOG = "/opt/pg_sa/backend/logs/ansible.log"

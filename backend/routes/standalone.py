@@ -22,7 +22,8 @@ from utils.cleanup import cleanup_previous_deployment
 
 standalone_bp = Blueprint(
     "standalone",
-    __name__
+    __name__,
+    url_prefix="/api",
 )
 
 #

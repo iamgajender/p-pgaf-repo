@@ -3,6 +3,8 @@ from flask_cors import CORS
 
 from routes.standalone import standalone_bp
 from routes.deployment import deployment_bp
+from routes.users import users_bp
+
 
 app = Flask(__name__)
 
@@ -10,6 +12,7 @@ CORS(app)
 
 app.register_blueprint(standalone_bp)
 app.register_blueprint(deployment_bp)
+app.register_blueprint(users_bp)
 
 if __name__ == "__main__":
 

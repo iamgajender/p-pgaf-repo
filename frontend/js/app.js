@@ -18,7 +18,7 @@ async function installPostgres() {
 
     try {
 
-        const response = await fetch("/install", {
+        const response = await fetch("/api/install", {
 
             method: "POST",
 
@@ -160,7 +160,7 @@ async function loadDeploymentLog() {
 
     try {
 
-        const response = await fetch("/deployment/log");
+        const response = await fetch("/api/deployment/log");
 
         if (!response.ok) {
 
