@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Standalone Installation — PostgreSQL Automation Portal</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+</head>
+
+<body>
+
+<div class="sidebar">
+    <div class="logo">
+        <img src="../images/postgres.png">
+        <h2>PostgreSQL</h2>
+        <span>Automation Portal</span>
+    </div>
+    <ul>
+        <li>
+            <a href="../index.html">
+                <i class="fa-solid fa-house"></i>
+                Dashboard
+            </a>
+        </li>
+        <li class="active">
+            <a href="install.html">
+                <i class="fa-solid fa-server"></i>
+                Standalone Installation
+            </a>
+        </li>
+        <li>
+            <a href="../users/index.html">
+                <i class="fa-solid fa-users"></i>
+                User Management
+            </a>
+        </li>
+        <li>
+            <a href="#">
+                <i class="fa-solid fa-network-wired"></i>
+                High Availability
+            </a>
+        </li>
+    </ul>
+</div>
+
+<div class="main">
+    <header>
+        <h1>Standalone Installation</h1>
+        <div class="profile">
+            <i class="fa-solid fa-circle-user"></i>
+            Administrator
+        </div>
+    </header>
+
+    <div class="result-panel">
+        <h3>Server Details</h3>
+        <form id="install-form" onsubmit="event.preventDefault(); installPostgres();" autocomplete="off">
+            <div class="form-grid">
+                <div class="form-field">
+                    <label for="server_ip">Server IP Address</label>
+                    <input
+                        type="text"
+                        id="server_ip"
+                        name="server_ip"
+                        placeholder="192.168.1.10"
+                        pattern="^(\d{1,3}\.){3}\d{1,3}$"
+                        title="Enter a valid IPv4 address"
+                        required
+                        autocomplete="off">
+                </div>
+
+                <div class="form-field">
+                    <label for="ssh_user">SSH Username</label>
+                    <input
+                        type="text"
+                        id="ssh_user"
+                        name="ssh_user"
+                        placeholder="root"
+                        required
+                        autocomplete="off">
+                </div>
+
+                <div class="form-field">
+                    <label for="ssh_password">SSH Password</label>
+                    <input
+                        type="password"
+                        id="ssh_password"
+                        name="ssh_password"
+                        placeholder="••••••••"
+                        required
+                        autocomplete="new-password">
+                </div>
+
+                <div class="form-field">
+                    <label for="postgres_version">PostgreSQL Version</label>
+                    <select id="postgres_version" name="postgres_version" required>
+                        <option value="16">PostgreSQL 16</option>
+                        <option value="17" selected>PostgreSQL 17</option>
+                        <option value="18">PostgreSQL 18</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="install-btn">
+                <i class="fa-solid fa-download"></i>
+                Install PostgreSQL
+            </button>
+        </form>
+    </div>
+
+    <div class="result-panel">
+        <h3>Deployment Log</h3>
+        <div id="status" class="log-panel">Waiting to start installation…</div>
+    </div>
+
+    <footer>© 2026 PostgreSQL Automation Portal</footer>
+</div>
+
+<script src="../js/app.js"></script>
+</body>
+</html>

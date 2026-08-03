@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deployment Result — PostgreSQL Automation Portal</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+</head>
+
+<body>
+
+<div class="sidebar">
+    <div class="logo">
+        <img src="../images/postgres.png">
+        <h2>PostgreSQL</h2>
+        <span>Automation Portal</span>
+    </div>
+    <ul>
+        <li>
+            <a href="../index.html">
+                <i class="fa-solid fa-house"></i>
+                Dashboard
+            </a>
+        </li>
+        <li class="active">
+            <a href="install.html">
+                <i class="fa-solid fa-server"></i>
+                Standalone Installation
+            </a>
+        </li>
+        <li>
+            <a href="../users/index.html">
+                <i class="fa-solid fa-users"></i>
+                User Management
+            </a>
+        </li>
+        <li>
+            <a href="#">
+                <i class="fa-solid fa-network-wired"></i>
+                High Availability
+            </a>
+        </li>
+    </ul>
+</div>
+
+<div class="main">
+    <header>
+        <h1>Deployment Result</h1>
+        <div class="profile">
+            <i class="fa-solid fa-circle-user"></i>
+            Administrator
+        </div>
+    </header>
+
+    <div class="result-panel" id="result-panel">
+        <!-- populated by js/result.js -->
+    </div>
+
+    <footer>© 2026 PostgreSQL Automation Portal</footer>
+</div>
+
+<script src="../js/result.js"></script>
+</body>
+</html>
