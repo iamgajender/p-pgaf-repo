@@ -11,93 +11,382 @@
 
     <link rel="stylesheet" href="css/style.css">
 
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+
 </head>
 
 <body>
 
-<div class="container">
+<div class="sidebar">
 
-    <h1>PostgreSQL Automation Portal</h1>
+    <div class="logo">
 
-    <div class="warning">
+        <img src="images/postgres.png">
 
-        <strong>Prerequisites</strong>
+        <h2>PostgreSQL</h2>
 
-        <ul>
-
-            <li>Ensure the target server is reachable.</li>
-
-            <li>Ensure SSH service is running on the target server.</li>
-
-            <li>Ensure the Ansible Automation Server has passwordless SSH access (recommended for production) or valid SSH credentials.</li>
-
-            <li>Ensure Python 3 is installed on the target server.</li>
-
-        </ul>
+        <span>Automation Portal</span>
 
     </div>
 
-    <h2>Standalone PostgreSQL Installation</h2>
+    <ul>
 
-    <label>Server IP Address</label>
+        <li class="active">
 
-    <input
-        type="text"
-        id="server_ip"
-        placeholder="10.0.2.100"
-    >
+            <a href="index.html">
 
-    <label>SSH Username</label>
+                <i class="fa-solid fa-house"></i>
 
-    <input
-        type="text"
-        id="ssh_user"
-        value="root"
-    >
+                Dashboard
 
-    <label>SSH Password</label>
+            </a>
 
-    <input
-        type="password"
-        id="ssh_password"
-        placeholder="Enter SSH Password"
-    >
+        </li>
 
-    <label>PostgreSQL Version</label>
+        <li>
 
-    <select id="postgres_version">
+            <a href="standalone/install.html">
 
-        <option value="">Select Version</option>
+                <i class="fa-solid fa-server"></i>
 
-        <option value="16">PostgreSQL 16</option>
+                Standalone Installation
 
-        <option value="17">PostgreSQL 17</option>
+            </a>
 
-        <option value="18">PostgreSQL 18</option>
+        </li>
 
-    </select>
+        <li>
 
-    <button onclick="installPostgres()">
+            <a href="users/index.html">
 
-        Install PostgreSQL
+                <i class="fa-solid fa-users"></i>
 
-    </button>
+                User Management
 
-    <div class="status">
+            </a>
 
-        <h3>Deployment Status</h3>
+        </li>
 
-        <pre id="status">
+        <li>
 
-            Ready to Deploy...
+            <a href="database/index.html">
 
-        </pre>
+                <i class="fa-solid fa-database"></i>
 
-    </div>
+                Database Management
+
+            </a>
+
+        </li>
+
+        <li>
+
+            <a href="#">
+
+                <i class="fa-solid fa-box-archive"></i>
+
+                Backup & Restore
+
+            </a>
+
+        </li>
+
+        <li>
+
+            <a href="#">
+
+                <i class="fa-solid fa-chart-line"></i>
+
+                Monitoring
+
+            </a>
+
+        </li>
+
+        <li>
+
+            <a href="#">
+
+                <i class="fa-solid fa-network-wired"></i>
+
+                High Availability
+
+            </a>
+
+        </li>
+
+        <li>
+
+            <a href="#">
+
+                <i class="fa-solid fa-gear"></i>
+
+                Settings
+
+            </a>
+
+        </li>
+
+    </ul>
 
 </div>
 
-<script src="js/app.js"></script>
+<div class="main">
+
+    <header>
+
+        <h1>
+
+            PostgreSQL Automation Portal
+
+        </h1>
+
+        <div class="profile">
+
+            <i class="fa-solid fa-circle-user"></i>
+
+            Administrator
+
+        </div>
+
+    </header>
+
+    <section class="welcome">
+
+        <div>
+
+            <h2>
+
+                Welcome to PostgreSQL Automation Portal
+
+            </h2>
+
+            <p>
+
+                Deploy, Configure, Manage and Monitor PostgreSQL servers from one place.
+
+            </p>
+
+        </div>
+
+        <img src="images/postgres-automation.png">
+
+    </section>
+
+    <h2 class="section-title">
+
+        Automation Modules
+
+    </h2>
+
+    <div class="cards">
+
+        <div class="card">
+
+            <i class="fa-solid fa-server"></i>
+
+            <h3>
+
+                Standalone PostgreSQL
+
+            </h3>
+
+            <p>
+
+                Install PostgreSQL on a standalone Linux server.
+
+            </p>
+
+            <a href="standalone/install.html">
+
+                Open
+
+            </a>
+
+        </div>
+
+        <div class="card">
+
+            <i class="fa-solid fa-users"></i>
+
+            <h3>
+
+                User Management
+
+            </h3>
+
+            <p>
+
+                Create, Modify, Delete PostgreSQL users and permissions.
+
+            </p>
+
+            <a href="users/index.html">
+
+                Open
+
+            </a>
+
+        </div>
+
+        <div class="card">
+
+            <i class="fa-solid fa-database"></i>
+
+            <h3>
+
+                Database Management
+
+            </h3>
+
+            <p>
+
+                Create, Rename and Delete PostgreSQL Databases.
+
+            </p>
+
+            <a href="database/index.html">
+
+                Open
+
+            </a>
+
+        </div>
+
+        <div class="card">
+
+            <i class="fa-solid fa-box-archive"></i>
+
+            <h3>
+
+                Backup & Restore
+
+            </h3>
+
+            <p>
+
+                Manage Full Backup, Restore and Scheduling.
+
+            </p>
+
+            <a href="#">
+
+                Coming Soon
+
+            </a>
+
+        </div>
+
+        <div class="card">
+
+            <i class="fa-solid fa-chart-line"></i>
+
+            <h3>
+
+                Monitoring
+
+            </h3>
+
+            <p>
+
+                Monitor PostgreSQL Health and Performance.
+
+            </p>
+
+            <a href="#">
+
+                Coming Soon
+
+            </a>
+
+        </div>
+
+        <div class="card">
+
+            <i class="fa-solid fa-network-wired"></i>
+
+            <h3>
+
+                High Availability
+
+            </h3>
+
+            <p>
+
+                Deploy pg_auto_failover, PgBouncer and HAProxy.
+
+            </p>
+
+            <a href="#">
+
+                Coming Soon
+
+            </a>
+
+        </div>
+
+    </div>
+
+    <div class="status-panel">
+
+        <div>
+
+            <h3>
+
+                Portal Version
+
+            </h3>
+
+            <p>
+
+                PostgreSQL Automation Portal v1.0
+
+            </p>
+
+        </div>
+
+        <div>
+
+            <h3>
+
+                Supported PostgreSQL
+
+            </h3>
+
+            <p>
+
+                PostgreSQL 16 • 17 • 18
+
+            </p>
+
+        </div>
+
+        <div>
+
+            <h3>
+
+                Status
+
+            </h3>
+
+            <p class="online">
+
+                ● Operational
+
+            </p>
+
+        </div>
+
+    </div>
+
+    <footer>
+
+        © 2026 PostgreSQL Automation Portal
+
+    </footer>
+
+</div>
 
 </body>
 
