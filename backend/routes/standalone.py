@@ -17,6 +17,8 @@ from utils.logger import (
     deployment_logger
 )
 
+from utils.cleanup import cleanup_previous_deployment
+
 
 standalone_bp = Blueprint(
     "standalone",
@@ -43,6 +45,11 @@ def install_postgresql():
         ssh_user = data["ssh_user"]
         ssh_password = data["ssh_password"]
         postgres_version = data["postgres_version"]
+        
+        # clean up old logs 
+
+        cleanup_previous_deployment()
+
 
         #
         # Generate inventory.ini
