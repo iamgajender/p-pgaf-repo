@@ -1,0 +1,16 @@
+####################################################
+# Standalone PostgreSQL Access
+# Managed by Ansible
+####################################################
+
+# Local Unix Socket
+local   all             all                                     trust
+
+# Localhost IPv4
+host    all             all             127.0.0.1/32            trust
+
+# Localhost IPv6
+host    all             all             ::1/128                 trust
+
+# Application / Client Network
+host    all             all             {{ subnet_range }}/24    trust

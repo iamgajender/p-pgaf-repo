@@ -1,0 +1,13 @@
+---
+- name: Configure pg_hba.conf for PostgreSQL Auto Failover cluster
+  ansible.builtin.blockinfile:
+    path: "{{ postgres_config_directory }}/pg_hba.conf"
+    marker: "# {mark} ANSIBLE PG_AUTOFAILOVER"
+    block: "{{ lookup('template', 'pg_hba_block.j2') }}"
+    owner: postgres
+    group: postgres
+    mode: "0600"
+    backup: yes
+
+  notify:
+    - reload postgres

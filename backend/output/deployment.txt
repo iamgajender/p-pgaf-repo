@@ -2,10 +2,10 @@
 PostgreSQL Deployment Request
 ======================================================================
 
-Request Time       : 2026-08-03 12:38:06.021818
-Server IP          : 10.1.1.12
+Request Time       : 2026-08-03 13:31:37.840299
+Server IP          : 10.1.1.217
 SSH User           : root
-PostgreSQL Version : 17
+PostgreSQL Version : 16
 
 Status             : Request Received
 ======================================================================

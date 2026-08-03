@@ -253,3 +253,13 @@
 2026-08-03 12:38:06,022 | INFO | PATH: /opt/pg_sa/backend/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 2026-08-03 12:38:06,022 | INFO | SSH: /usr/bin/ssh
 2026-08-03 12:38:06,022 | INFO | ANSIBLE: /usr/bin/ansible-playbook
+2026-08-03 13:23:31,959 | INFO | PWD: /opt/pg_sa/backend
+2026-08-03 13:23:31,959 | INFO | HOME: /root
+2026-08-03 13:23:31,959 | INFO | PATH: /opt/pg_sa/backend/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+2026-08-03 13:23:31,959 | INFO | SSH: /usr/bin/ssh
+2026-08-03 13:23:31,959 | INFO | ANSIBLE: /usr/bin/ansible-playbook
+2026-08-03 13:31:37,840 | INFO | PWD: /opt/pg_sa/backend
+2026-08-03 13:31:37,840 | INFO | HOME: /root
+2026-08-03 13:31:37,840 | INFO | PATH: /opt/pg_sa/backend/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+2026-08-03 13:31:37,840 | INFO | SSH: /usr/bin/ssh
+2026-08-03 13:31:37,840 | INFO | ANSIBLE: /usr/bin/ansible-playbook

@@ -1,10 +1,18 @@
 ---
+# Configure PostgreSQL Repository
 - import_tasks: repo/ubuntu.yml
 
+# Install PostgreSQL Packages
 - import_tasks: packages/ubuntu.yml
 
+# Configure Kernel & Memory Parameters
 - import_tasks: memory_tuning/ubuntu.yml
 
+# Configure PostgreSQL
 - import_tasks: configure/ubuntu.yml
 
+# Configure pg_hba.conf
+- import_tasks: pg_hba/ubuntu.yml
+
+# Validate Installation
 - import_tasks: validate/ubuntu.yml

@@ -11,6 +11,11 @@ postgres_port: 5432
 
 postgres_data_directory: "/var/lib/postgresql/{{ postgres_version }}/main"
 
+postgres_config_directory: "/etc/postgresql/{{ postgres_version }}/main"
+
+subnet_range: 10.1.1.0
+
+
 ###############################################
 # Network
 ###############################################
