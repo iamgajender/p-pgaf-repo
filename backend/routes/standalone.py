@@ -82,32 +82,24 @@ def install_postgresql():
         backend_logger.info(f"SSH: {shutil.which('ssh')}")
         backend_logger.info(f"ANSIBLE: {shutil.which('ansible-playbook')}")
 
-        ansible_logger.info("=" * 80)
-        ansible_logger.info("INSTALL STDOUT")
 
-        install = subprocess.Popen(
+        install = subprocess.run(
             [
                 ANSIBLE_PLAYBOOK,
                 "standalone.yml"
             ],
             cwd=ANSIBLE_PROJECT,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1
+            capture_output=True,
+            text=True
         )
 
-        stdout_lines = []
+        ansible_logger.info("=" * 80)
+        ansible_logger.info("INSTALL STDOUT")
+        ansible_logger.info(install.stdout)
 
-        for line in install.stdout:
-
-            stdout_lines.append(line)
-
-            ansible_logger.info(line.rstrip())
-
-        install.wait()
-
-        stdout = "".join(stdout_lines)
+        ansible_logger.info("=" * 80)
+        ansible_logger.info("INSTALL STDERR")
+        ansible_logger.info(install.stderr)
 
         ansible_logger.info("=" * 80)
         ansible_logger.info(f"RETURN CODE : {install.returncode}")
@@ -124,9 +116,9 @@ def install_postgresql():
 
                 "message": "PostgreSQL installation failed.",
 
-                "stdout": stdout,
+                "stdout": install.stdout,
 
-                "stderr": ""
+                "stderr": install.stderr
 
             }), 500
 

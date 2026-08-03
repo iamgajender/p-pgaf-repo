@@ -1,44 +1,30 @@
 ---
 - hosts: all
   become: yes
+
   tasks:
+
     - name: Hostname
       command: hostname
       register: hostname_out
       changed_when: false
+
     - name: OS
       command: cat /etc/os-release
       register: os_out
       changed_when: false
+
     - name: PostgreSQL Version
       become_user: postgres
       command: psql --version
       register: pg_version
       changed_when: false
+
     - name: PostgreSQL Configuration
       become_user: postgres
       shell: |
-        psql -At -F '=' -c "
-        SELECT
-          name,
-          CASE
-            WHEN unit = '8kB' THEN
-              CASE
-                WHEN (setting::numeric * 8 / 1024) >= 1024 THEN
-                  ROUND(setting::numeric * 8 / 1024 / 1024, 2)::text || ' GB'
-                ELSE
-                  ROUND(setting::numeric * 8 / 1024, 2)::text || ' MB'
-              END
-            WHEN unit = 'kB' THEN
-              CASE
-                WHEN (setting::numeric / 1024) >= 1024 THEN
-                  ROUND(setting::numeric / 1024 / 1024, 2)::text || ' GB'
-                ELSE
-                  ROUND(setting::numeric / 1024, 2)::text || ' MB'
-              END
-            ELSE
-              setting
-          END
+        psql -At -c "
+        SELECT name || '=' || setting
         FROM pg_settings
         WHERE name IN
         (
@@ -53,6 +39,7 @@
         );"
       register: pg_settings
       changed_when: false
+
     - name: Save PostgreSQL summary on Ansible Controller
       copy:
         dest: /tmp/postgres_summary.json
