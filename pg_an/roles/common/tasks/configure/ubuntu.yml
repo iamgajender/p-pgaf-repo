@@ -28,4 +28,4 @@
     - src: "40-logging.conf.j2"
       dest: "40-logging.conf"
 
-  notify: Restart PostgreSQL
+  notify: restart postgres
