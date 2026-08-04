@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create User — PostgreSQL Automation Portal</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+</head>
+
+<body>
+
+<div class="sidebar">
+    <div class="logo">
+        <img src="../images/postgres.png">
+        <h2>PostgreSQL</h2>
+        <span>Automation Portal</span>
+    </div>
+    <ul>
+        <li>
+            <a href="../index.html">
+                <i class="fa-solid fa-house"></i>
+                Dashboard
+            </a>
+        </li>
+        <li>
+            <a href="../standalone/install.html">
+                <i class="fa-solid fa-server"></i>
+                Standalone Installation
+            </a>
+        </li>
+        <li class="active">
+            <a href="index.html">
+                <i class="fa-solid fa-users"></i>
+                User Management
+            </a>
+        </li>
+        <li>
+            <a href="#">
+                <i class="fa-solid fa-network-wired"></i>
+                High Availability
+            </a>
+        </li>
+    </ul>
+</div>
+
+<div class="main">
+    <header>
+        <h1>Create User</h1>
+        <div class="profile">
+            <i class="fa-solid fa-circle-user"></i>
+            Administrator
+        </div>
+    </header>
+
+    <!-- Shown only if the person navigated here without connecting first -->
+    <div class="result-panel" id="no-connection" hidden>
+        <div class="empty-state">
+            <i class="fa-solid fa-circle-info"></i>
+            <p>No active connection found. Connect to a server before creating a user.</p>
+            <div class="result-actions" style="justify-content:center;">
+                <a class="btn btn-primary" href="index.html">Go to User Management</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="result-panel" id="create-panel" hidden>
+        <h3>Connected As</h3>
+        <p class="connection-summary" id="connection-summary"></p>
+
+        <hr>
+
+        <h3>New User Details</h3>
+        <form id="create-form" onsubmit="event.preventDefault(); createUser();" autocomplete="off">
+            <div class="form-grid">
+                <div class="form-field">
+                    <label for="new_username">Username</label>
+                    <input type="text" id="new_username" required autocomplete="off">
+                </div>
+                <div class="form-field">
+                    <label for="new_password">Password</label>
+                    <input type="password" id="new_password" required autocomplete="new-password">
+                </div>
+                <div class="form-field">
+                    <label for="confirm_password">Confirm Password</label>
+                    <input type="password" id="confirm_password" required autocomplete="new-password">
+                </div>
+            </div>
+
+            <div class="checkbox-row">
+                <input type="checkbox" id="new_can_login" checked>
+                <label for="new_can_login">Can login</label>
+            </div>
+            <div class="checkbox-row">
+                <input type="checkbox" id="new_superuser">
+                <label for="new_superuser">Superuser</label>
+            </div>
+            <div class="checkbox-row">
+                <input type="checkbox" id="new_createdb">
+                <label for="new_createdb">Can create databases</label>
+            </div>
+
+            <div id="create-status" class="connection-status" hidden></div>
+
+            <div class="result-actions">
+                <button type="submit" class="btn btn-primary" id="create-btn">
+                    <i class="fa-solid fa-user-plus"></i>
+                    Create User
+                </button>
+                <a class="btn btn-outline" href="index.html">Back to User Management</a>
+            </div>
+        </form>
+    </div>
+
+    <footer>© 2026 PostgreSQL Automation Portal</footer>
+</div>
+
+<script src="../js/users-create.js"></script>
+</body>
+</html>

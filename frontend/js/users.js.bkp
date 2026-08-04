@@ -26,18 +26,6 @@ function setButtonBusy(btnId, busy, idleLabel) {
         : idleLabel;
 }
 
-// A 404/500 from Flask often comes back as an HTML error page, not JSON.
-// response.json() throws a SyntaxError on that, which otherwise gets
-// swallowed into a misleading "could not reach the server" message.
-// This makes that failure mode say what it actually is.
-async function parseJsonSafely(response) {
-    try {
-        return await response.json();
-    } catch (error) {
-        throw new Error(`Unexpected response from server (HTTP ${response.status}). Check the endpoint URL.`);
-    }
-}
-
 function openModal(modalId) {
     document.getElementById(modalId).hidden = false;
 }
@@ -62,7 +50,7 @@ async function connectDatabase() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
         });
-        const result = await parseJsonSafely(response);
+        const result = await response.json();
 
         if (!response.ok || result.status !== "success") {
             setStatus("connection-status", result.message || "Connection failed.", true);
@@ -71,18 +59,12 @@ async function connectDatabase() {
         }
 
         connectionInfo = payload;
-        // Create User (and eventually Modify/Privileges) navigate to their
-        // own page, so the connection has to survive that navigation.
-        // sessionStorage clears itself when the tab closes, but note this
-        // does mean the superuser password briefly sits in browser storage
-        // rather than only in memory.
-        sessionStorage.setItem("pgConnection", JSON.stringify(payload));
         setStatus("connection-status", result.message || `Connected to ${escapeHtml(payload.server_ip)}`, false);
         document.getElementById("user-actions").hidden = false;
         await loadUserList();
     } catch (error) {
         console.error(error);
-        setStatus("connection-status", error.message || "Could not reach the server.", true);
+        setStatus("connection-status", "Could not reach the server.", true);
     } finally {
         setButtonBusy("connect-btn", false, `<i class="fa-solid fa-plug"></i> Connect`);
     }
@@ -91,12 +73,12 @@ async function connectDatabase() {
 async function loadUserList() {
     if (!connectionInfo) return;
     try {
-        const response = await fetch("/api/users/list", {
+        const response = await fetch("/users/list", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(connectionInfo)
         });
-        const result = await parseJsonSafely(response);
+        const result = await response.json();
         const users = (result && result.users) || [];
 
         [document.getElementById("modify_username"), document.getElementById("priv_username")]
@@ -107,6 +89,42 @@ async function loadUserList() {
             });
     } catch (error) {
         console.error(error);
+    }
+}
+
+async function createUser() {
+    if (!connectionInfo) return;
+    const payload = {
+        ...connectionInfo,
+        new_username: document.getElementById("new_username").value.trim(),
+        new_password: document.getElementById("new_password").value,
+        can_login: document.getElementById("new_can_login").checked,
+        superuser: document.getElementById("new_superuser").checked,
+        createdb: document.getElementById("new_createdb").checked
+    };
+
+    setButtonBusy("create-submit-btn", true, "Create");
+    try {
+        const response = await fetch("/users/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+
+        if (!response.ok || result.status !== "success") {
+            setStatus("create-status", result.message || "Could not create user.", true);
+            return;
+        }
+
+        setStatus("create-status", result.message || "User created.", false);
+        await loadUserList();
+        setTimeout(() => closeModal("modal-create"), 1200);
+    } catch (error) {
+        console.error(error);
+        setStatus("create-status", "Could not reach the server.", true);
+    } finally {
+        setButtonBusy("create-submit-btn", false, "Create");
     }
 }
 
@@ -122,12 +140,12 @@ async function modifyUser() {
 
     setButtonBusy("modify-submit-btn", true, "Save Changes");
     try {
-        const response = await fetch("/api/users/modify", {
+        const response = await fetch("/users/modify", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
         });
-        const result = await parseJsonSafely(response);
+        const result = await response.json();
 
         if (!response.ok || result.status !== "success") {
             setStatus("modify-status", result.message || "Could not modify user.", true);
@@ -138,7 +156,7 @@ async function modifyUser() {
         setTimeout(() => closeModal("modal-modify"), 1200);
     } catch (error) {
         console.error(error);
-        setStatus("modify-status", error.message || "Could not reach the server.", true);
+        setStatus("modify-status", "Could not reach the server.", true);
     } finally {
         setButtonBusy("modify-submit-btn", false, "Save Changes");
     }
@@ -160,12 +178,12 @@ async function updatePrivileges() {
 
     setButtonBusy("privileges-submit-btn", true, "Apply");
     try {
-        const response = await fetch("/api/users/privileges", {
+        const response = await fetch("/users/privileges", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
         });
-        const result = await parseJsonSafely(response);
+        const result = await response.json();
 
         if (!response.ok || result.status !== "success") {
             setStatus("privileges-status", result.message || "Could not update privileges.", true);
@@ -176,7 +194,7 @@ async function updatePrivileges() {
         setTimeout(() => closeModal("modal-privileges"), 1200);
     } catch (error) {
         console.error(error);
-        setStatus("privileges-status", error.message || "Could not reach the server.", true);
+        setStatus("privileges-status", "Could not reach the server.", true);
     } finally {
         setButtonBusy("privileges-submit-btn", false, "Apply");
     }
