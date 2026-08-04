@@ -169,6 +169,8 @@ class PostgresService:
 
                 FROM pg_roles
 
+                WHERE rolcanlogin = true
+
                 ORDER BY rolname
 
             """)
