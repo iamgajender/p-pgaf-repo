@@ -78,6 +78,20 @@ def create_user():
             "message": str(e)
         }), 500
 ###############################################################
+@users_bp.route("/details", methods=["POST"])
+def user_details():
+    try:
+        data = request.get_json()
+        result = postgres.get_user_details(data)
+        if result["status"] == "success":
+            return jsonify(result), 200
+        return jsonify(result), 400
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+###############################################################
 @users_bp.route("/modify", methods=["POST"])
 def modify_user():
     try:

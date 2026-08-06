@@ -40,6 +40,9 @@ async function parseJsonSafely(response) {
 
 function openModal(modalId) {
     document.getElementById(modalId).hidden = false;
+    if (modalId === "modal-modify") {
+        loadUserDetails();
+    }
 }
 function closeModal(modalId) {
     document.getElementById(modalId).hidden = true;
@@ -110,12 +113,45 @@ async function loadUserList() {
     }
 }
 
+async function loadUserDetails() {
+    if (!connectionInfo) return;
+    const username = document.getElementById("modify_username").value;
+    if (!username) return;
+
+    try {
+        const response = await fetch("/api/users/details", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...connectionInfo, target_username: username })
+        });
+        const result = await parseJsonSafely(response);
+
+        if (!response.ok || result.status !== "success") {
+            console.error(result.message);
+            return;
+        }
+
+        document.getElementById("modify_can_login").checked = !!result.attributes.can_login;
+        document.getElementById("modify_superuser").checked = !!result.attributes.superuser;
+        document.getElementById("modify_password").value = "";
+    } catch (error) {
+        console.error(error);
+    }
+}
+
 async function modifyUser() {
     if (!connectionInfo) return;
+    // NOTE: these keys deliberately do NOT reuse "username"/"password" —
+    // connectionInfo already has fields with those exact names holding
+    // the SUPERUSER's login. Spreading connectionInfo and then setting
+    // username/password again here would silently overwrite the
+    // superuser's credentials with the target user's name and new
+    // password, and the backend would try to connect AS the target user
+    // (this was the "password authentication failed for user X" bug).
     const payload = {
         ...connectionInfo,
-        username: document.getElementById("modify_username").value,
-        password: document.getElementById("modify_password").value || null,
+        target_username: document.getElementById("modify_username").value,
+        new_password: document.getElementById("modify_password").value || null,
         can_login: document.getElementById("modify_can_login").checked,
         superuser: document.getElementById("modify_superuser").checked
     };
@@ -150,9 +186,11 @@ async function updatePrivileges() {
         .filter(p => document.getElementById(`priv_${p}`).checked)
         .map(p => p.toUpperCase());
 
+    // Same collision fix as modifyUser() — target_username instead of
+    // username, so connectionInfo's superuser username survives the spread.
     const payload = {
         ...connectionInfo,
-        username: document.getElementById("priv_username").value,
+        target_username: document.getElementById("priv_username").value,
         target_database: document.getElementById("priv_database").value.trim(),
         action: document.getElementById("priv_action").value,
         privileges

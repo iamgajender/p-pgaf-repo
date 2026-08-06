@@ -142,7 +142,7 @@
         <form onsubmit="event.preventDefault(); modifyUser();">
             <div class="form-field">
                 <label for="modify_username">Username</label>
-                <select id="modify_username" required></select>
+                <select id="modify_username" required onchange="loadUserDetails()"></select>
             </div>
             <div class="form-field">
                 <label for="modify_password">New Password <span class="field-hint">(leave blank to keep current)</span></label>
