@@ -94,6 +94,10 @@
                 <i class="fa-solid fa-plug"></i>
                 Connect
             </button>
+            <button type="button" class="btn btn-outline" id="disconnect-btn" onclick="disconnectDatabase()" hidden>
+                <i class="fa-solid fa-plug-circle-xmark"></i>
+                Disconnect
+            </button>
         </form>
 
         <div id="connection-status" class="connection-status" hidden></div>
@@ -142,7 +146,7 @@
         <form onsubmit="event.preventDefault(); modifyUser();">
             <div class="form-field">
                 <label for="modify_username">Username</label>
-                <select id="modify_username" required></select>
+                <select id="modify_username" required onchange="loadUserDetails()"></select>
             </div>
             <div class="form-field">
                 <label for="modify_password">New Password <span class="field-hint">(leave blank to keep current)</span></label>
@@ -176,7 +180,15 @@
             </div>
             <div class="form-field">
                 <label for="priv_database">Database</label>
-                <input type="text" id="priv_database" placeholder="postgres" required>
+                <select id="priv_database" required onchange="loadSchemas()">
+                    <option value="">Loading databases…</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label for="priv_schema">Schema</label>
+                <select id="priv_schema" required>
+                    <option value="">Select a database first</option>
+                </select>
             </div>
             <div class="form-field">
                 <label for="priv_action">Action</label>

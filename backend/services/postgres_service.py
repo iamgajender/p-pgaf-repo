@@ -163,13 +163,13 @@ class PostgresService:
 
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(r"""
 
                 SELECT rolname
 
                 FROM pg_roles
 
-                WHERE rolcanlogin = true
+                WHERE rolname NOT LIKE 'pg\_%'
 
                 ORDER BY rolname
 
@@ -289,6 +289,67 @@ class PostgresService:
 
     ##############################################################
 
+    def get_user_details(self, data):
+
+        conn = None
+        cursor = None
+
+        try:
+
+            username = self._require_username(data.get("target_username"))
+
+            conn = self._connect(data)
+            cursor = conn.cursor()
+
+            cursor.execute(
+                """
+                SELECT rolcanlogin, rolsuper, rolcreatedb, rolcreaterole,
+                       rolreplication, rolconnlimit, rolvaliduntil
+                FROM pg_roles
+                WHERE rolname = %s
+                """,
+                (username,)
+            )
+            row = cursor.fetchone()
+
+            if row is None:
+                return {
+                    "status": "error",
+                    "message": f'No role named "{username}" was found.'
+                }
+
+            can_login, superuser, createdb, createrole, replication, conn_limit, valid_until = row
+
+            return {
+                "status": "success",
+                "attributes": {
+                    "can_login": can_login,
+                    "superuser": superuser,
+                    "createdb": createdb,
+                    "createrole": createrole,
+                    "replication": replication,
+                    "connection_limit": conn_limit,
+                    "valid_until": valid_until.isoformat() if valid_until else None
+                }
+            }
+
+        except Exception as e:
+
+            return {
+                "status": "error",
+                "message": str(e)
+            }
+
+        finally:
+
+            if cursor:
+                cursor.close()
+
+            if conn:
+                conn.close()
+
+    ##############################################################
+
     def modify_user(self, data):
 
         conn = None
@@ -296,32 +357,89 @@ class PostgresService:
 
         try:
 
-            username = self._require_username(data.get("username"))
-            password = data.get("password")
-            can_login = data.get("can_login")
-            superuser = data.get("superuser")
-
-            role_clauses = []
-
-            if can_login is not None:
-                role_clauses.append(sql.SQL("LOGIN" if can_login else "NOLOGIN"))
-
-            if superuser is not None:
-                role_clauses.append(sql.SQL("SUPERUSER" if superuser else "NOSUPERUSER"))
-
-            if not role_clauses and not password:
-                return {
-                    "status": "error",
-                    "message": "No changes were submitted."
-                }
+            username = self._require_username(data.get("target_username"))
+            password = data.get("new_password") or None
 
             conn = self._connect(data)
             cursor = conn.cursor()
 
-            if role_clauses:
+            # Current attributes come straight from the database — the
+            # source of truth — not from whatever the client last
+            # rendered. This is what lets us build an ALTER ROLE with
+            # only the clauses that actually changed, instead of always
+            # resending every attribute (which is what was triggering
+            # "permission denied ... SUPERUSER" on requests that never
+            # meant to touch SUPERUSER at all).
+            cursor.execute(
+                """
+                SELECT rolcanlogin, rolsuper, rolcreatedb, rolcreaterole,
+                       rolreplication, rolconnlimit
+                FROM pg_roles
+                WHERE rolname = %s
+                """,
+                (username,)
+            )
+            row = cursor.fetchone()
+
+            if row is None:
+                return {
+                    "status": "error",
+                    "message": f'No role named "{username}" was found.'
+                }
+
+            current = {
+                "can_login": row[0],
+                "superuser": row[1],
+                "createdb": row[2],
+                "createrole": row[3],
+                "replication": row[4],
+                "connection_limit": row[5],
+            }
+
+            boolean_attrs = {
+                "can_login": "LOGIN",
+                "superuser": "SUPERUSER",
+                "createdb": "CREATEDB",
+                "createrole": "CREATEROLE",
+                "replication": "REPLICATION",
+            }
+
+            clauses = []
+            changed = []
+
+            for key, keyword in boolean_attrs.items():
+                if key in data and data[key] is not None:
+                    requested = bool(data[key])
+                    if requested != current[key]:
+                        clauses.append(sql.SQL(keyword if requested else f"NO{keyword}"))
+                        changed.append(key)
+
+            if data.get("connection_limit") not in (None, ""):
+                requested_limit = int(data["connection_limit"])
+                if requested_limit != current["connection_limit"]:
+                    clauses.append(
+                        sql.SQL("CONNECTION LIMIT {}").format(sql.Literal(requested_limit))
+                    )
+                    changed.append("connection_limit")
+
+            valid_until_clause = None
+            if data.get("valid_until"):
+                valid_until_clause = sql.SQL("VALID UNTIL {}").format(
+                    sql.Literal(data["valid_until"])
+                )
+                changed.append("valid_until")
+
+            if not clauses and not valid_until_clause and not password:
+                return {
+                    "status": "success",
+                    "message": f'No changes were needed — "{username}" already matches the requested settings.'
+                }
+
+            if clauses or valid_until_clause:
+                all_clauses = clauses + ([valid_until_clause] if valid_until_clause else [])
                 query = sql.SQL("ALTER ROLE {} WITH {}").format(
                     sql.Identifier(username),
-                    sql.SQL(" ").join(role_clauses)
+                    sql.SQL(" ").join(all_clauses)
                 )
                 cursor.execute(query)
 
@@ -330,12 +448,13 @@ class PostgresService:
                     sql.Identifier(username), sql.Literal(password)
                 )
                 cursor.execute(pw_query)
+                changed.append("password")
 
             conn.commit()
 
             return {
                 "status": "success",
-                "message": f'User "{username}" updated successfully.'
+                "message": f'Updated {", ".join(changed)} for "{username}".'
             }
 
         except errors.UndefinedObject:
@@ -345,13 +464,111 @@ class PostgresService:
 
             return {
                 "status": "error",
-                "message": f'No role named "{data.get("username")}" was found.'
+                "message": f'No role named "{data.get("target_username")}" was found.'
             }
 
         except Exception as e:
 
             if conn:
                 conn.rollback()
+
+            return {
+                "status": "error",
+                "message": str(e)
+            }
+
+        finally:
+
+            if cursor:
+                cursor.close()
+
+            if conn:
+                conn.close()
+
+    ##############################################################
+
+    def list_databases(self, data):
+
+        conn = None
+        cursor = None
+
+        try:
+
+            conn = self._connect(data)
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT datname
+                FROM pg_database
+                WHERE datistemplate = false
+                ORDER BY datname
+            """)
+
+            databases = [row[0] for row in cursor.fetchall()]
+
+            return {
+                "status": "success",
+                "databases": databases
+            }
+
+        except Exception as e:
+
+            return {
+                "status": "error",
+                "message": str(e)
+            }
+
+        finally:
+
+            if cursor:
+                cursor.close()
+
+            if conn:
+                conn.close()
+
+    ##############################################################
+
+    def list_schemas(self, data):
+
+        conn = None
+        cursor = None
+
+        try:
+
+            target_database = data.get("target_database")
+
+            if not target_database:
+                return {
+                    "status": "error",
+                    "message": "target_database is required."
+                }
+
+            # Schemas live inside a specific database — connect to the
+            # one being asked about, not the one from the original
+            # superuser connection.
+            connect_data = dict(data)
+            connect_data["database"] = target_database
+
+            conn = self._connect(connect_data)
+            cursor = conn.cursor()
+
+            cursor.execute(r"""
+                SELECT schema_name
+                FROM information_schema.schemata
+                WHERE schema_name NOT IN ('pg_catalog', 'information_schema')
+                  AND schema_name NOT LIKE 'pg\_toast%'
+                  AND schema_name NOT LIKE 'pg\_temp\_%'
+                ORDER BY schema_name
+            """)
+
+            schemas = [row[0] for row in cursor.fetchall()]
+
+            return {
+                "status": "success",
+                "schemas": schemas
+            }
+
+        except Exception as e:
 
             return {
                 "status": "error",
@@ -375,8 +592,9 @@ class PostgresService:
 
         try:
 
-            username = self._require_username(data.get("username"))
+            username = self._require_username(data.get("target_username"))
             action = str(data.get("action", "grant")).strip().lower()
+            schema = str(data.get("schema") or "public").strip()
 
             if action not in ("grant", "revoke"):
                 return {
@@ -419,12 +637,12 @@ class PostgresService:
 
             if action == "grant":
                 query = sql.SQL(
-                    "GRANT {} ON ALL TABLES IN SCHEMA public TO {}"
-                ).format(privilege_clause, sql.Identifier(username))
+                    "GRANT {} ON ALL TABLES IN SCHEMA {} TO {}"
+                ).format(privilege_clause, sql.Identifier(schema), sql.Identifier(username))
             else:
                 query = sql.SQL(
-                    "REVOKE {} ON ALL TABLES IN SCHEMA public FROM {}"
-                ).format(privilege_clause, sql.Identifier(username))
+                    "REVOKE {} ON ALL TABLES IN SCHEMA {} FROM {}"
+                ).format(privilege_clause, sql.Identifier(schema), sql.Identifier(username))
 
             cursor.execute(query)
             conn.commit()
@@ -433,7 +651,8 @@ class PostgresService:
                 "status": "success",
                 "message": (
                     f'{"Granted" if action == "grant" else "Revoked"} '
-                    f'{", ".join(privileges)} on "{connect_data["database"]}" '
+                    f'{", ".join(privileges)} on schema "{schema}" in '
+                    f'"{connect_data["database"]}" '
                     f'{"to" if action == "grant" else "from"} "{username}".'
                 )
             }
@@ -445,7 +664,7 @@ class PostgresService:
 
             return {
                 "status": "error",
-                "message": f'No role named "{data.get("username")}" was found.'
+                "message": f'No role named "{data.get("target_username")}" was found.'
             }
 
         except Exception as e:

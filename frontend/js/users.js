@@ -4,9 +4,10 @@ function escapeHtml(value) {
     return div.innerHTML;
 }
 
-// Connection details live only in memory for the life of this page —
-// never written to sessionStorage/localStorage, so the superuser
-// password disappears on refresh or tab close.
+// Connection details are kept in this variable and mirrored to
+// sessionStorage (see connectDatabase/disconnectDatabase below) so the
+// connection survives navigating to Create User and back, without
+// requiring a fresh Connect click every time the page loads.
 let connectionInfo = null;
 
 function setStatus(elementId, message, isError) {
@@ -40,10 +41,69 @@ async function parseJsonSafely(response) {
 
 function openModal(modalId) {
     document.getElementById(modalId).hidden = false;
+    if (modalId === "modal-modify") {
+        loadUserDetails();
+    }
+    if (modalId === "modal-privileges") {
+        loadDatabases();
+    }
 }
 function closeModal(modalId) {
     document.getElementById(modalId).hidden = true;
 }
+
+function setFormFieldsDisabled(disabled) {
+    ["server_ip", "server_port", "db_name", "db_username", "db_password"]
+        .forEach(id => { document.getElementById(id).disabled = disabled; });
+}
+
+function showConnectedUI(payload, message) {
+    connectionInfo = payload;
+    document.getElementById("server_ip").value = payload.server_ip;
+    document.getElementById("server_port").value = payload.server_port;
+    document.getElementById("db_name").value = payload.database;
+    document.getElementById("db_username").value = payload.username;
+    document.getElementById("db_password").value = payload.password;
+    setFormFieldsDisabled(true);
+
+    document.getElementById("connect-btn").hidden = true;
+    document.getElementById("disconnect-btn").hidden = false;
+
+    setStatus("connection-status", message || `Connected to ${escapeHtml(payload.server_ip)}`, false);
+    document.getElementById("user-actions").hidden = false;
+}
+
+function disconnectDatabase() {
+    sessionStorage.removeItem("pgConnection");
+    connectionInfo = null;
+
+    document.getElementById("db_password").value = "";
+    setFormFieldsDisabled(false);
+
+    document.getElementById("connect-btn").hidden = false;
+    document.getElementById("disconnect-btn").hidden = true;
+
+    document.getElementById("connection-status").hidden = true;
+    document.getElementById("user-actions").hidden = true;
+}
+
+// If a connection already exists from an earlier visit this session (e.g.
+// navigating back from Create User), restore it instead of forcing a
+// reconnect — the connection stays live until Disconnect is clicked
+// explicitly, not just because the page reloaded.
+document.addEventListener("DOMContentLoaded", () => {
+    const raw = sessionStorage.getItem("pgConnection");
+    if (!raw) return;
+
+    try {
+        const payload = JSON.parse(raw);
+        showConnectedUI(payload, `Connected to ${escapeHtml(payload.server_ip)}`);
+        loadUserList();
+    } catch (error) {
+        console.error(error);
+        sessionStorage.removeItem("pgConnection");
+    }
+});
 
 async function connectDatabase() {
     const payload = {
@@ -70,15 +130,13 @@ async function connectDatabase() {
             return;
         }
 
-        connectionInfo = payload;
-        // Create User (and eventually Modify/Privileges) navigate to their
-        // own page, so the connection has to survive that navigation.
-        // sessionStorage clears itself when the tab closes, but note this
-        // does mean the superuser password briefly sits in browser storage
-        // rather than only in memory.
+        // Create User (and Modify/Privileges) navigate to their own page,
+        // so the connection has to survive that navigation. sessionStorage
+        // clears itself when the tab closes, but note this does mean the
+        // superuser password briefly sits in browser storage rather than
+        // only in memory.
         sessionStorage.setItem("pgConnection", JSON.stringify(payload));
-        setStatus("connection-status", result.message || `Connected to ${escapeHtml(payload.server_ip)}`, false);
-        document.getElementById("user-actions").hidden = false;
+        showConnectedUI(payload, result.message);
         await loadUserList();
     } catch (error) {
         console.error(error);
@@ -110,12 +168,45 @@ async function loadUserList() {
     }
 }
 
+async function loadUserDetails() {
+    if (!connectionInfo) return;
+    const username = document.getElementById("modify_username").value;
+    if (!username) return;
+
+    try {
+        const response = await fetch("/api/users/details", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...connectionInfo, target_username: username })
+        });
+        const result = await parseJsonSafely(response);
+
+        if (!response.ok || result.status !== "success") {
+            console.error(result.message);
+            return;
+        }
+
+        document.getElementById("modify_can_login").checked = !!result.attributes.can_login;
+        document.getElementById("modify_superuser").checked = !!result.attributes.superuser;
+        document.getElementById("modify_password").value = "";
+    } catch (error) {
+        console.error(error);
+    }
+}
+
 async function modifyUser() {
     if (!connectionInfo) return;
+    // NOTE: these keys deliberately do NOT reuse "username"/"password" —
+    // connectionInfo already has fields with those exact names holding
+    // the SUPERUSER's login. Spreading connectionInfo and then setting
+    // username/password again here would silently overwrite the
+    // superuser's credentials with the target user's name and new
+    // password, and the backend would try to connect AS the target user
+    // (this was the "password authentication failed for user X" bug).
     const payload = {
         ...connectionInfo,
-        username: document.getElementById("modify_username").value,
-        password: document.getElementById("modify_password").value || null,
+        target_username: document.getElementById("modify_username").value,
+        new_password: document.getElementById("modify_password").value || null,
         can_login: document.getElementById("modify_can_login").checked,
         superuser: document.getElementById("modify_superuser").checked
     };
@@ -144,16 +235,74 @@ async function modifyUser() {
     }
 }
 
+async function loadDatabases() {
+    if (!connectionInfo) return;
+    const dbSelect = document.getElementById("priv_database");
+    dbSelect.innerHTML = `<option value="">Loading databases…</option>`;
+
+    try {
+        const response = await fetch("/api/users/databases", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(connectionInfo)
+        });
+        const result = await parseJsonSafely(response);
+        const databases = (result && result.databases) || [];
+
+        dbSelect.innerHTML = databases
+            .map(db => `<option value="${escapeHtml(db)}">${escapeHtml(db)}</option>`)
+            .join("");
+
+        await loadSchemas();
+    } catch (error) {
+        console.error(error);
+        dbSelect.innerHTML = `<option value="">Could not load databases</option>`;
+    }
+}
+
+async function loadSchemas() {
+    if (!connectionInfo) return;
+    const targetDatabase = document.getElementById("priv_database").value;
+    const schemaSelect = document.getElementById("priv_schema");
+
+    if (!targetDatabase) {
+        schemaSelect.innerHTML = `<option value="">Select a database first</option>`;
+        return;
+    }
+
+    schemaSelect.innerHTML = `<option value="">Loading schemas…</option>`;
+
+    try {
+        const response = await fetch("/api/users/schemas", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...connectionInfo, target_database: targetDatabase })
+        });
+        const result = await parseJsonSafely(response);
+        const schemas = (result && result.schemas) || [];
+
+        schemaSelect.innerHTML = schemas
+            .map(s => `<option value="${escapeHtml(s)}" ${s === "public" ? "selected" : ""}>${escapeHtml(s)}</option>`)
+            .join("");
+    } catch (error) {
+        console.error(error);
+        schemaSelect.innerHTML = `<option value="">Could not load schemas</option>`;
+    }
+}
+
 async function updatePrivileges() {
     if (!connectionInfo) return;
     const privileges = ["select", "insert", "update", "delete", "all"]
         .filter(p => document.getElementById(`priv_${p}`).checked)
         .map(p => p.toUpperCase());
 
+    // Same collision fix as modifyUser() — target_username instead of
+    // username, so connectionInfo's superuser username survives the spread.
     const payload = {
         ...connectionInfo,
-        username: document.getElementById("priv_username").value,
-        target_database: document.getElementById("priv_database").value.trim(),
+        target_username: document.getElementById("priv_username").value,
+        target_database: document.getElementById("priv_database").value,
+        schema: document.getElementById("priv_schema").value,
         action: document.getElementById("priv_action").value,
         privileges
     };
