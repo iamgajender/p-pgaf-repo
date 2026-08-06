@@ -44,6 +44,9 @@ function openModal(modalId) {
     if (modalId === "modal-modify") {
         loadUserDetails();
     }
+    if (modalId === "modal-privileges") {
+        loadDatabases();
+    }
 }
 function closeModal(modalId) {
     document.getElementById(modalId).hidden = true;
@@ -232,6 +235,61 @@ async function modifyUser() {
     }
 }
 
+async function loadDatabases() {
+    if (!connectionInfo) return;
+    const dbSelect = document.getElementById("priv_database");
+    dbSelect.innerHTML = `<option value="">Loading databases…</option>`;
+
+    try {
+        const response = await fetch("/api/users/databases", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(connectionInfo)
+        });
+        const result = await parseJsonSafely(response);
+        const databases = (result && result.databases) || [];
+
+        dbSelect.innerHTML = databases
+            .map(db => `<option value="${escapeHtml(db)}">${escapeHtml(db)}</option>`)
+            .join("");
+
+        await loadSchemas();
+    } catch (error) {
+        console.error(error);
+        dbSelect.innerHTML = `<option value="">Could not load databases</option>`;
+    }
+}
+
+async function loadSchemas() {
+    if (!connectionInfo) return;
+    const targetDatabase = document.getElementById("priv_database").value;
+    const schemaSelect = document.getElementById("priv_schema");
+
+    if (!targetDatabase) {
+        schemaSelect.innerHTML = `<option value="">Select a database first</option>`;
+        return;
+    }
+
+    schemaSelect.innerHTML = `<option value="">Loading schemas…</option>`;
+
+    try {
+        const response = await fetch("/api/users/schemas", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...connectionInfo, target_database: targetDatabase })
+        });
+        const result = await parseJsonSafely(response);
+        const schemas = (result && result.schemas) || [];
+
+        schemaSelect.innerHTML = schemas
+            .map(s => `<option value="${escapeHtml(s)}" ${s === "public" ? "selected" : ""}>${escapeHtml(s)}</option>`)
+            .join("");
+    } catch (error) {
+        console.error(error);
+        schemaSelect.innerHTML = `<option value="">Could not load schemas</option>`;
+    }
+}
+
 async function updatePrivileges() {
     if (!connectionInfo) return;
     const privileges = ["select", "insert", "update", "delete", "all"]
@@ -243,7 +301,8 @@ async function updatePrivileges() {
     const payload = {
         ...connectionInfo,
         target_username: document.getElementById("priv_username").value,
-        target_database: document.getElementById("priv_database").value.trim(),
+        target_database: document.getElementById("priv_database").value,
+        schema: document.getElementById("priv_schema").value,
         action: document.getElementById("priv_action").value,
         privileges
     };

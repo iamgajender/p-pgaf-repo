@@ -180,7 +180,15 @@
             </div>
             <div class="form-field">
                 <label for="priv_database">Database</label>
-                <input type="text" id="priv_database" placeholder="postgres" required>
+                <select id="priv_database" required onchange="loadSchemas()">
+                    <option value="">Loading databases…</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label for="priv_schema">Schema</label>
+                <select id="priv_schema" required>
+                    <option value="">Select a database first</option>
+                </select>
             </div>
             <div class="form-field">
                 <label for="priv_action">Action</label>

@@ -78,6 +78,34 @@ def create_user():
             "message": str(e)
         }), 500
 ###############################################################
+@users_bp.route("/databases", methods=["POST"])
+def list_databases():
+    try:
+        data = request.get_json()
+        result = postgres.list_databases(data)
+        if result["status"] == "success":
+            return jsonify(result), 200
+        return jsonify(result), 400
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+###############################################################
+@users_bp.route("/schemas", methods=["POST"])
+def list_schemas():
+    try:
+        data = request.get_json()
+        result = postgres.list_schemas(data)
+        if result["status"] == "success":
+            return jsonify(result), 200
+        return jsonify(result), 400
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+###############################################################
 @users_bp.route("/details", methods=["POST"])
 def user_details():
     try:

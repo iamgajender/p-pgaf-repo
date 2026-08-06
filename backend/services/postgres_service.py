@@ -487,6 +487,104 @@ class PostgresService:
 
     ##############################################################
 
+    def list_databases(self, data):
+
+        conn = None
+        cursor = None
+
+        try:
+
+            conn = self._connect(data)
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT datname
+                FROM pg_database
+                WHERE datistemplate = false
+                ORDER BY datname
+            """)
+
+            databases = [row[0] for row in cursor.fetchall()]
+
+            return {
+                "status": "success",
+                "databases": databases
+            }
+
+        except Exception as e:
+
+            return {
+                "status": "error",
+                "message": str(e)
+            }
+
+        finally:
+
+            if cursor:
+                cursor.close()
+
+            if conn:
+                conn.close()
+
+    ##############################################################
+
+    def list_schemas(self, data):
+
+        conn = None
+        cursor = None
+
+        try:
+
+            target_database = data.get("target_database")
+
+            if not target_database:
+                return {
+                    "status": "error",
+                    "message": "target_database is required."
+                }
+
+            # Schemas live inside a specific database — connect to the
+            # one being asked about, not the one from the original
+            # superuser connection.
+            connect_data = dict(data)
+            connect_data["database"] = target_database
+
+            conn = self._connect(connect_data)
+            cursor = conn.cursor()
+
+            cursor.execute(r"""
+                SELECT schema_name
+                FROM information_schema.schemata
+                WHERE schema_name NOT IN ('pg_catalog', 'information_schema')
+                  AND schema_name NOT LIKE 'pg\_toast%'
+                  AND schema_name NOT LIKE 'pg\_temp\_%'
+                ORDER BY schema_name
+            """)
+
+            schemas = [row[0] for row in cursor.fetchall()]
+
+            return {
+                "status": "success",
+                "schemas": schemas
+            }
+
+        except Exception as e:
+
+            return {
+                "status": "error",
+                "message": str(e)
+            }
+
+        finally:
+
+            if cursor:
+                cursor.close()
+
+            if conn:
+                conn.close()
+
+    ##############################################################
+
     def update_privileges(self, data):
 
         conn = None
@@ -496,6 +594,7 @@ class PostgresService:
 
             username = self._require_username(data.get("target_username"))
             action = str(data.get("action", "grant")).strip().lower()
+            schema = str(data.get("schema") or "public").strip()
 
             if action not in ("grant", "revoke"):
                 return {
@@ -538,12 +637,12 @@ class PostgresService:
 
             if action == "grant":
                 query = sql.SQL(
-                    "GRANT {} ON ALL TABLES IN SCHEMA public TO {}"
-                ).format(privilege_clause, sql.Identifier(username))
+                    "GRANT {} ON ALL TABLES IN SCHEMA {} TO {}"
+                ).format(privilege_clause, sql.Identifier(schema), sql.Identifier(username))
             else:
                 query = sql.SQL(
-                    "REVOKE {} ON ALL TABLES IN SCHEMA public FROM {}"
-                ).format(privilege_clause, sql.Identifier(username))
+                    "REVOKE {} ON ALL TABLES IN SCHEMA {} FROM {}"
+                ).format(privilege_clause, sql.Identifier(schema), sql.Identifier(username))
 
             cursor.execute(query)
             conn.commit()
@@ -552,7 +651,8 @@ class PostgresService:
                 "status": "success",
                 "message": (
                     f'{"Granted" if action == "grant" else "Revoked"} '
-                    f'{", ".join(privileges)} on "{connect_data["database"]}" '
+                    f'{", ".join(privileges)} on schema "{schema}" in '
+                    f'"{connect_data["database"]}" '
                     f'{"to" if action == "grant" else "from"} "{username}".'
                 )
             }
