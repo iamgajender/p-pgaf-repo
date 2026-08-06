@@ -4,9 +4,10 @@ function escapeHtml(value) {
     return div.innerHTML;
 }
 
-// Connection details live only in memory for the life of this page —
-// never written to sessionStorage/localStorage, so the superuser
-// password disappears on refresh or tab close.
+// Connection details are kept in this variable and mirrored to
+// sessionStorage (see connectDatabase/disconnectDatabase below) so the
+// connection survives navigating to Create User and back, without
+// requiring a fresh Connect click every time the page loads.
 let connectionInfo = null;
 
 function setStatus(elementId, message, isError) {
@@ -48,6 +49,59 @@ function closeModal(modalId) {
     document.getElementById(modalId).hidden = true;
 }
 
+function setFormFieldsDisabled(disabled) {
+    ["server_ip", "server_port", "db_name", "db_username", "db_password"]
+        .forEach(id => { document.getElementById(id).disabled = disabled; });
+}
+
+function showConnectedUI(payload, message) {
+    connectionInfo = payload;
+    document.getElementById("server_ip").value = payload.server_ip;
+    document.getElementById("server_port").value = payload.server_port;
+    document.getElementById("db_name").value = payload.database;
+    document.getElementById("db_username").value = payload.username;
+    document.getElementById("db_password").value = payload.password;
+    setFormFieldsDisabled(true);
+
+    document.getElementById("connect-btn").hidden = true;
+    document.getElementById("disconnect-btn").hidden = false;
+
+    setStatus("connection-status", message || `Connected to ${escapeHtml(payload.server_ip)}`, false);
+    document.getElementById("user-actions").hidden = false;
+}
+
+function disconnectDatabase() {
+    sessionStorage.removeItem("pgConnection");
+    connectionInfo = null;
+
+    document.getElementById("db_password").value = "";
+    setFormFieldsDisabled(false);
+
+    document.getElementById("connect-btn").hidden = false;
+    document.getElementById("disconnect-btn").hidden = true;
+
+    document.getElementById("connection-status").hidden = true;
+    document.getElementById("user-actions").hidden = true;
+}
+
+// If a connection already exists from an earlier visit this session (e.g.
+// navigating back from Create User), restore it instead of forcing a
+// reconnect — the connection stays live until Disconnect is clicked
+// explicitly, not just because the page reloaded.
+document.addEventListener("DOMContentLoaded", () => {
+    const raw = sessionStorage.getItem("pgConnection");
+    if (!raw) return;
+
+    try {
+        const payload = JSON.parse(raw);
+        showConnectedUI(payload, `Connected to ${escapeHtml(payload.server_ip)}`);
+        loadUserList();
+    } catch (error) {
+        console.error(error);
+        sessionStorage.removeItem("pgConnection");
+    }
+});
+
 async function connectDatabase() {
     const payload = {
         server_ip: document.getElementById("server_ip").value.trim(),
@@ -73,15 +127,13 @@ async function connectDatabase() {
             return;
         }
 
-        connectionInfo = payload;
-        // Create User (and eventually Modify/Privileges) navigate to their
-        // own page, so the connection has to survive that navigation.
-        // sessionStorage clears itself when the tab closes, but note this
-        // does mean the superuser password briefly sits in browser storage
-        // rather than only in memory.
+        // Create User (and Modify/Privileges) navigate to their own page,
+        // so the connection has to survive that navigation. sessionStorage
+        // clears itself when the tab closes, but note this does mean the
+        // superuser password briefly sits in browser storage rather than
+        // only in memory.
         sessionStorage.setItem("pgConnection", JSON.stringify(payload));
-        setStatus("connection-status", result.message || `Connected to ${escapeHtml(payload.server_ip)}`, false);
-        document.getElementById("user-actions").hidden = false;
+        showConnectedUI(payload, result.message);
         await loadUserList();
     } catch (error) {
         console.error(error);
