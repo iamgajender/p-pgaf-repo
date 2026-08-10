@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Role — PostgreSQL Automation Portal</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+</head>
+
+<body>
+
+<div class="sidebar">
+    <div class="logo">
+        <img src="../images/postgres.png">
+        <h2>PostgreSQL</h2>
+        <span>Automation Portal</span>
+    </div>
+    <ul>
+        <li>
+            <a href="../index.html">
+                <i class="fa-solid fa-house"></i>
+                Dashboard
+            </a>
+        </li>
+        <li>
+            <a href="../standalone/install.html">
+                <i class="fa-solid fa-server"></i>
+                Standalone Installation
+            </a>
+        </li>
+        <li>
+            <a href="../users/index.html">
+                <i class="fa-solid fa-users"></i>
+                User Management
+            </a>
+        </li>
+        <li class="active">
+            <a href="index.html">
+                <i class="fa-solid fa-user-shield"></i>
+                Role Management
+            </a>
+        </li>
+        <li>
+            <a href="#">
+                <i class="fa-solid fa-network-wired"></i>
+                High Availability
+            </a>
+        </li>
+    </ul>
+</div>
+
+<div class="main">
+    <header>
+        <h1>Create Role</h1>
+        <div class="profile">
+            <i class="fa-solid fa-circle-user"></i>
+            Administrator
+        </div>
+    </header>
+
+    <div class="result-panel" id="no-connection" hidden>
+        <div class="empty-state">
+            <i class="fa-solid fa-circle-info"></i>
+            <p>No active connection found. Connect from User Management first.</p>
+            <div class="result-actions" style="justify-content:center;">
+                <a class="btn btn-primary" href="../users/index.html">Go to User Management</a>
+            </div>
+        </div>
+    </div>
+
+    <div id="create-role-view" hidden>
+
+        <div class="result-panel">
+            <h3>Connected As</h3>
+            <p class="connection-summary" id="connection-summary"></p>
+        </div>
+
+        <div class="result-panel">
+            <h3>Role Details</h3>
+            <form id="create-role-form" onsubmit="event.preventDefault(); createRole();" autocomplete="off">
+
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="role_name">Role Name</label>
+                        <input type="text" id="role_name" placeholder="dev_owner" required autocomplete="off">
+                    </div>
+
+                    <div class="form-field">
+                        <label for="role_type">Role Type</label>
+                        <select id="role_type">
+                            <option value="nologin">NOLOGIN Group Role</option>
+                            <option value="login">LOGIN Role</option>
+                        </select>
+                        <span class="field-hint">Group roles (NOLOGIN) hold privileges; users get assigned to them.</span>
+                    </div>
+                </div>
+
+                <hr>
+
+                <h3>Attach Privileges <span class="field-hint">(optional — a role can be created bare and configured later)</span></h3>
+
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="role_database">Database</label>
+                        <select id="role_database" onchange="loadRoleSchemas()">
+                            <option value="">Loading databases…</option>
+                        </select>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="role_schema">Schema</label>
+                        <select id="role_schema">
+                            <option value="">Select a database first</option>
+                        </select>
+                    </div>
+                </div>
+
+                <h3>Database Privileges</h3>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="db_connect" checked>
+                    <label for="db_connect">CONNECT</label>
+                </div>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="db_create">
+                    <label for="db_create">CREATE</label>
+                </div>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="db_temp">
+                    <label for="db_temp">TEMP</label>
+                </div>
+
+                <h3>Schema Privileges</h3>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="schema_usage" checked>
+                    <label for="schema_usage">USAGE</label>
+                </div>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="schema_create">
+                    <label for="schema_create">CREATE</label>
+                </div>
+
+                <h3>Table Privileges</h3>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="tbl_select" checked>
+                    <label for="tbl_select">SELECT</label>
+                </div>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="tbl_insert" checked>
+                    <label for="tbl_insert">INSERT</label>
+                </div>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="tbl_update" checked>
+                    <label for="tbl_update">UPDATE</label>
+                </div>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="tbl_delete" checked>
+                    <label for="tbl_delete">DELETE</label>
+                </div>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="tbl_truncate">
+                    <label for="tbl_truncate">TRUNCATE</label>
+                </div>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="tbl_references">
+                    <label for="tbl_references">REFERENCES</label>
+                </div>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="tbl_trigger">
+                    <label for="tbl_trigger">TRIGGER</label>
+                </div>
+
+                <hr>
+
+                <div class="checkbox-row">
+                    <input type="checkbox" id="apply_existing" checked>
+                    <label for="apply_existing">Apply to existing tables in this schema</label>
+                </div>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="apply_future" checked>
+                    <label for="apply_future">Apply to future tables (ALTER DEFAULT PRIVILEGES)</label>
+                </div>
+                <p class="field-hint">
+                    Without this, every new table created in this schema needs a manual GRANT before role members can use it.
+                </p>
+
+                <div id="create-role-status" class="connection-status" hidden></div>
+
+                <div class="result-actions">
+                    <button type="submit" class="btn btn-primary" id="create-role-btn">
+                        <i class="fa-solid fa-user-shield"></i>
+                        Create Role
+                    </button>
+                    <a class="btn btn-outline" href="index.html">Back to Role Management</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <footer>© 2026 PostgreSQL Automation Portal</footer>
+</div>
+
+<script src="../js/roles-create.js"></script>
+</body>
+</html>

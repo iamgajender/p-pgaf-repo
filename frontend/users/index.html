@@ -38,6 +38,12 @@
             </a>
         </li>
         <li>
+            <a href="../roles/index.html">
+                <i class="fa-solid fa-user-shield"></i>
+                Role Management
+            </a>
+        </li>
+        <li>
             <a href="#">
                 <i class="fa-solid fa-network-wired"></i>
                 High Availability
@@ -186,10 +192,34 @@
             </div>
             <div class="form-field">
                 <label for="priv_schema">Schema</label>
-                <select id="priv_schema" required>
+                <select id="priv_schema" required onchange="loadTables()">
                     <option value="">Select a database first</option>
                 </select>
             </div>
+
+            <div class="form-field">
+                <label>Object Type</label>
+                <select id="priv_object_type" disabled>
+                    <option value="table">Tables</option>
+                    <option value="sequence" disabled>Sequences (coming soon)</option>
+                    <option value="function" disabled>Functions (coming soon)</option>
+                    <option value="view" disabled>Views (coming soon)</option>
+                </select>
+                <span class="field-hint">Only table privileges are supported right now.</span>
+            </div>
+
+            <div class="checkbox-row">
+                <input type="checkbox" id="priv_all_tables" checked onchange="toggleTablePicker()">
+                <label for="priv_all_tables">Apply to all tables in this schema</label>
+            </div>
+
+            <div class="form-field" id="priv_table_picker" hidden>
+                <label>Tables</label>
+                <div class="table-picker" id="priv_table_list">
+                    <span class="field-hint">Select a schema first</span>
+                </div>
+            </div>
+
             <div class="form-field">
                 <label for="priv_action">Action</label>
                 <select id="priv_action" required>
@@ -212,6 +242,18 @@
             <div class="checkbox-row">
                 <input type="checkbox" id="priv_delete">
                 <label for="priv_delete">DELETE</label>
+            </div>
+            <div class="checkbox-row">
+                <input type="checkbox" id="priv_truncate">
+                <label for="priv_truncate">TRUNCATE</label>
+            </div>
+            <div class="checkbox-row">
+                <input type="checkbox" id="priv_references">
+                <label for="priv_references">REFERENCES</label>
+            </div>
+            <div class="checkbox-row">
+                <input type="checkbox" id="priv_trigger">
+                <label for="priv_trigger">TRIGGER</label>
             </div>
             <div class="checkbox-row">
                 <input type="checkbox" id="priv_all">
