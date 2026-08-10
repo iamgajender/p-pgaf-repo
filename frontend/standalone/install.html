@@ -102,7 +102,34 @@
                         <option value="18">PostgreSQL 18</option>
                     </select>
                 </div>
+
+                <div class="form-field">
+                    <label for="postgres_password">PostgreSQL Superuser Password</label>
+                    <input
+                        type="password"
+                        id="postgres_password"
+                        name="postgres_password"
+                        placeholder="••••••••"
+                        minlength="8"
+                        required
+                        autocomplete="new-password">
+                </div>
+
+                <div class="form-field">
+                    <label for="postgres_password_confirm">Confirm Password</label>
+                    <input
+                        type="password"
+                        id="postgres_password_confirm"
+                        name="postgres_password_confirm"
+                        placeholder="••••••••"
+                        required
+                        autocomplete="new-password">
+                </div>
             </div>
+
+            <p class="field-hint" id="password-mismatch-hint" style="display:none; color:var(--signal-red); margin:-14px 0 14px;">
+                Passwords do not match.
+            </p>
 
             <button type="submit" class="btn btn-primary" id="install-btn">
                 <i class="fa-solid fa-download"></i>

@@ -34,6 +34,43 @@ ANSIBLE_PROJECT = "/opt/pg_sa/pg_an"
 
 SUMMARY_FILE = "/tmp/postgres_summary.json"
 
+# Same path the /api/deployment/log route reads from — must match exactly
+# so what's streamed here is what the UI polls.
+ANSIBLE_LOG = "/opt/pg_sa/backend/logs/ansible.log"
+
+
+def run_playbook_live(playbook_name, label):
+    """
+    Run an ansible-playbook and stream its stdout/stderr live into
+    ANSIBLE_LOG as it's produced, instead of buffering until the process
+    exits. The frontend polls /api/deployment/log every couple seconds,
+    so this is what makes the log panel update in real time.
+    """
+    with open(ANSIBLE_LOG, "a") as log_file:
+
+        log_file.write(f"\n{'=' * 80}\n>>> {label}\n{'=' * 80}\n")
+        log_file.flush()
+
+        process = subprocess.Popen(
+            [ANSIBLE_PLAYBOOK, playbook_name],
+            cwd=ANSIBLE_PROJECT,
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            env={
+                **os.environ,
+                "PYTHONUNBUFFERED": "1",
+                "ANSIBLE_FORCE_COLOR": "False",
+                "ANSIBLE_STDOUT_CALLBACK": "minimal",
+            },
+        )
+
+        returncode = process.wait()
+
+    ansible_logger.info(f"{label} finished with return code {returncode}")
+    return returncode
+
 
 @standalone_bp.route("/install", methods=["POST"])
 def install_postgresql():
@@ -46,11 +83,22 @@ def install_postgresql():
         ssh_user = data["ssh_user"]
         ssh_password = data["ssh_password"]
         postgres_version = data["postgres_version"]
-        
-        # clean up old logs 
+        postgres_password = data.get("postgres_password")
+
+        if not postgres_password:
+            return jsonify({
+                "status": "failed",
+                "message": "postgres_password is required."
+            }), 400
+
+        # clean up old logs
 
         cleanup_previous_deployment()
 
+        # Always start this run with a clean log file — this is what
+        # guarantees the log is empty before a run starts, and that this
+        # run's log doesn't get mixed with a previous one's.
+        open(ANSIBLE_LOG, "w").close()
 
         #
         # Generate inventory.ini
@@ -65,7 +113,8 @@ def install_postgresql():
         # Generate postgres.yml
         #
         generate_group_vars(
-            postgres_version
+            postgres_version,
+            postgres_password
         )
 
         #
@@ -77,12 +126,14 @@ def install_postgresql():
             postgres_version
         )
 
-        print("=" * 70)
-        print(data)
-        print("=" * 70)
+        # NOTE: deliberately no `print(data)` here — data contains
+        # ssh_password and postgres_password in plain text, and printing
+        # it dumps both into stdout/systemd journal/wherever this
+        # process's output goes. Use backend_logger for anything that
+        # actually needs to be diagnosable, and never log secrets.
 
         #
-        # Run PostgreSQL Installation Playbook
+        # Run PostgreSQL Installation Playbook (streamed live)
         #
         backend_logger.info(f"PWD: {os.getcwd()}")
         backend_logger.info(f"HOME: {os.environ.get('HOME')}")
@@ -90,33 +141,16 @@ def install_postgresql():
         backend_logger.info(f"SSH: {shutil.which('ssh')}")
         backend_logger.info(f"ANSIBLE: {shutil.which('ansible-playbook')}")
 
+        install_rc = run_playbook_live("standalone.yml", "Installing PostgreSQL")
 
-        install = subprocess.run(
-            [
-                ANSIBLE_PLAYBOOK,
-                "standalone.yml"
-            ],
-            cwd=ANSIBLE_PROJECT,
-            capture_output=True,
-            text=True
-        )
-
-        ansible_logger.info("=" * 80)
-        ansible_logger.info("INSTALL STDOUT")
-        ansible_logger.info(install.stdout)
-
-        ansible_logger.info("=" * 80)
-        ansible_logger.info("INSTALL STDERR")
-        ansible_logger.info(install.stderr)
-
-        ansible_logger.info("=" * 80)
-        ansible_logger.info(f"RETURN CODE : {install.returncode}")
-
-        if install.returncode != 0:
+        if install_rc != 0:
 
             deployment_logger.error(
                 f"FAILED | Server={server_ip} | PostgreSQL={postgres_version}"
             )
+
+            with open(ANSIBLE_LOG, "r") as log_file:
+                full_log = log_file.read()
 
             return jsonify({
 
@@ -124,41 +158,23 @@ def install_postgresql():
 
                 "message": "PostgreSQL installation failed.",
 
-                "stdout": install.stdout,
-
-                "stderr": install.stderr
+                "stderr": full_log
 
             }), 500
 
         #
-        # Run PostgreSQL Information Collection Playbook
+        # Run PostgreSQL Information Collection Playbook (streamed live)
         #
-        collect = subprocess.run(
-            [
-                ANSIBLE_PLAYBOOK,
-                "collect_info.yml"
-            ],
-            cwd=ANSIBLE_PROJECT,
-            capture_output=True,
-            text=True
-        )
+        collect_rc = run_playbook_live("collect_info.yml", "Collecting PostgreSQL info")
 
-        ansible_logger.info("=" * 80)
-        ansible_logger.info("COLLECT INFO STDOUT")
-        ansible_logger.info(collect.stdout)
-
-        ansible_logger.info("=" * 80)
-        ansible_logger.info("COLLECT INFO STDERR")
-        ansible_logger.info(collect.stderr)
-
-        ansible_logger.info("=" * 80)
-        ansible_logger.info(f"RETURN CODE : {collect.returncode}")
-
-        if collect.returncode != 0:
+        if collect_rc != 0:
 
             deployment_logger.error(
                 f"FAILED | Server={server_ip} | PostgreSQL={postgres_version}"
             )
+
+            with open(ANSIBLE_LOG, "r") as log_file:
+                full_log = log_file.read()
 
             return jsonify({
 
@@ -166,9 +182,7 @@ def install_postgresql():
 
                 "message": "Unable to collect PostgreSQL information.",
 
-                "stdout": collect.stdout,
-
-                "stderr": collect.stderr
+                "stderr": full_log
 
             }), 500
 
