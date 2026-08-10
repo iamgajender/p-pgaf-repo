@@ -2,10 +2,40 @@
 ###############################################################################
 # Common Configuration
 ###############################################################################
-
 - hosts: all
   become: yes
-
   roles:
     - common
 
+###############################################################################
+# Set PostgreSQL Superuser Password
+#
+# Runs as a separate play (not folded into the common role) so this stays
+# independent of whatever that role does internally. Uses peer/local
+# authentication as the postgres OS user to make the first connection —
+# no password exists yet at this point, which is exactly why this has to
+# run before anything else tries to connect with one.
+###############################################################################
+- hosts: all
+  become: yes
+
+  tasks:
+
+    - name: Install psycopg2 on target (required by postgresql_user module)
+      apt:
+        name: python3-psycopg2
+        state: present
+        update_cache: yes
+
+    - name: Set postgres superuser password
+      become_user: postgres
+      community.postgresql.postgresql_user:
+        name: postgres
+        password: "{{ postgres_superuser_password }}"
+        role_attr_flags: SUPERUSER
+      when: postgres_superuser_password is defined
+
+    - name: Reload PostgreSQL service
+      service:
+        name: postgresql
+        state: reloaded

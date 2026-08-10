@@ -273,3 +273,23 @@
 2026-08-05 12:25:56,982 | INFO | PATH: /opt/pg_sa/backend/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 2026-08-05 12:25:56,983 | INFO | SSH: /usr/bin/ssh
 2026-08-05 12:25:56,983 | INFO | ANSIBLE: /usr/bin/ansible-playbook
+2026-08-10 05:32:19,219 | ERROR | generate_group_vars() takes 1 positional argument but 2 were given
+Traceback (most recent call last):
+  File "/opt/pg_sa/backend/routes/standalone.py", line 115, in install_postgresql
+    generate_group_vars(
+TypeError: generate_group_vars() takes 1 positional argument but 2 were given
+2026-08-10 05:44:57,225 | INFO | PWD: /opt/pg_sa/backend
+2026-08-10 05:44:57,225 | INFO | HOME: /root
+2026-08-10 05:44:57,226 | INFO | PATH: /opt/pg_sa/backend/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+2026-08-10 05:44:57,226 | INFO | SSH: /usr/bin/ssh
+2026-08-10 05:44:57,226 | INFO | ANSIBLE: /usr/bin/ansible-playbook
+2026-08-10 05:47:34,155 | INFO | PWD: /opt/pg_sa/backend
+2026-08-10 05:47:34,155 | INFO | HOME: /root
+2026-08-10 05:47:34,155 | INFO | PATH: /opt/pg_sa/backend/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+2026-08-10 05:47:34,155 | INFO | SSH: /usr/bin/ssh
+2026-08-10 05:47:34,155 | INFO | ANSIBLE: /usr/bin/ansible-playbook
+2026-08-10 06:04:12,546 | INFO | PWD: /opt/pg_sa/backend
+2026-08-10 06:04:12,546 | INFO | HOME: /root
+2026-08-10 06:04:12,546 | INFO | PATH: /opt/pg_sa/backend/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+2026-08-10 06:04:12,546 | INFO | SSH: /usr/bin/ssh
+2026-08-10 06:04:12,546 | INFO | ANSIBLE: /usr/bin/ansible-playbook
