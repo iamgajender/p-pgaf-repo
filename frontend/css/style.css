@@ -867,3 +867,7 @@ footer {
 @media (max-width: 640px) {
   .access-model-toggle { flex-direction: column; }
 }
+
+.btn-danger { background: var(--signal-red); color: #fff; border: 1px solid transparent; }
+.btn-danger:hover { background: #A82634; }
+.btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }

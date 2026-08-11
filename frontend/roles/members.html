@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Role Management — PostgreSQL Automation Portal</title>
+    <title>Role Members — PostgreSQL Automation Portal</title>
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
@@ -54,16 +54,13 @@
 
 <div class="main">
     <header>
-        <h1>Role Management</h1>
+        <h1>Role Members</h1>
         <div class="profile">
             <i class="fa-solid fa-circle-user"></i>
             Administrator
         </div>
     </header>
 
-    <!-- Shown when no connection exists yet — Role Management reuses the
-         same connection User Management establishes, rather than asking
-         to connect twice. -->
     <div class="result-panel" id="no-connection" hidden>
         <div class="empty-state">
             <i class="fa-solid fa-circle-info"></i>
@@ -74,33 +71,27 @@
         </div>
     </div>
 
-    <div id="connected-view" hidden>
+    <div id="members-view" hidden>
+
         <div class="result-panel">
             <h3>Connected As</h3>
             <p class="connection-summary" id="connection-summary"></p>
         </div>
 
-        <h2 class="section-title">Role Actions</h2>
-        <div class="cards">
-            <div class="card card--action">
-                <i class="fa-solid fa-user-shield"></i>
-                <h3>Create Role</h3>
-                <p>Create a role and attach database, schema, and table privileges.</p>
-                <a class="btn btn-primary" href="create.html">Create Role</a>
+        <div class="result-panel">
+            <h3>Select a Role</h3>
+            <div class="form-field">
+                <label for="member_role">Role</label>
+                <select id="member_role" onchange="loadMembers()">
+                    <option value="">Loading roles…</option>
+                </select>
             </div>
+        </div>
 
-            <div class="card card--action">
-                <i class="fa-solid fa-pen"></i>
-                <h3>Modify Role</h3>
-                <p>Change a role's login/privilege attributes.</p>
-                <a class="btn btn-primary" href="modify.html">Modify Role</a>
-            </div>
-
-            <div class="card card--action">
-                <i class="fa-solid fa-users-viewfinder"></i>
-                <h3>View Role Members</h3>
-                <p>See which users are assigned to a role.</p>
-                <a class="btn btn-primary" href="members.html">View Members</a>
+        <div class="result-panel">
+            <h3>Members</h3>
+            <div id="members-list">
+                <span class="field-hint">Select a role above to see its members.</span>
             </div>
         </div>
     </div>
@@ -108,6 +99,6 @@
     <footer>© 2026 PostgreSQL Automation Portal</footer>
 </div>
 
-<script src="../js/roles.js"></script>
+<script src="../js/roles-members.js"></script>
 </body>
 </html>
