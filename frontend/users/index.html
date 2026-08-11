@@ -139,6 +139,15 @@
                     Manage Privileges
                 </button>
             </div>
+
+            <div class="card card--action">
+                <i class="fa-solid fa-user-xmark"></i>
+                <h3>Delete User</h3>
+                <p>Permanently remove a PostgreSQL role.</p>
+                <button type="button" class="btn btn-danger" onclick="openModal('modal-delete')">
+                    Delete User
+                </button>
+            </div>
         </div>
     </div>
 
@@ -166,27 +175,6 @@
                 <input type="checkbox" id="modify_superuser">
                 <label for="modify_superuser">Superuser</label>
             </div>
-
-<hr>
-
-<h4>Assigned Roles</h4>
-
-<div id="assigned-roles-container">
-
-</div>
-
-<div class="form-field">
-    <label for="default_role">
-        Default Role
-    </label>
-
-    <select id="default_role">
-        <option value="">
-            No Default Role
-        </option>
-    </select>
-</div>
-
             <div id="modify-status" class="modal-status" hidden></div>
             <div class="modal-actions">
                 <button type="button" class="btn btn-outline" onclick="closeModal('modal-modify')">Cancel</button>
@@ -284,6 +272,32 @@
             <div class="modal-actions">
                 <button type="button" class="btn btn-outline" onclick="closeModal('modal-privileges')">Cancel</button>
                 <button type="submit" class="btn btn-primary" id="privileges-submit-btn">Apply</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ============ Modal: Delete User ============ -->
+<div class="modal-overlay" id="modal-delete" hidden>
+    <div class="modal">
+        <h3>Delete User</h3>
+        <form onsubmit="event.preventDefault(); deleteUser();">
+            <div class="form-field">
+                <label for="delete_username">Username</label>
+                <select id="delete_username" required onchange="resetDeleteConfirm()"></select>
+            </div>
+            <p class="field-hint" style="color:var(--signal-red);">
+                This permanently drops the role. It cannot be undone, and will fail if the
+                role still owns objects or has active grants.
+            </p>
+            <div class="form-field">
+                <label for="delete_confirm_text">Type the username to confirm</label>
+                <input type="text" id="delete_confirm_text" autocomplete="off" oninput="checkDeleteConfirm()">
+            </div>
+            <div id="delete-status" class="modal-status" hidden></div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-outline" onclick="closeModal('modal-delete')">Cancel</button>
+                <button type="submit" class="btn btn-danger" id="delete-submit-btn" disabled>Delete User</button>
             </div>
         </form>
     </div>

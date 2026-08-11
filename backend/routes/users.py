@@ -106,6 +106,34 @@ def list_schemas():
             "message": str(e)
         }), 500
 ###############################################################
+@users_bp.route("/delete", methods=["POST"])
+def delete_user():
+    try:
+        data = request.get_json()
+        result = postgres.delete_user(data)
+        if result["status"] == "success":
+            return jsonify(result), 200
+        return jsonify(result), 400
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+###############################################################
+@users_bp.route("/tables", methods=["POST"])
+def list_tables():
+    try:
+        data = request.get_json()
+        result = postgres.list_tables(data)
+        if result["status"] == "success":
+            return jsonify(result), 200
+        return jsonify(result), 400
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+###############################################################
 @users_bp.route("/details", methods=["POST"])
 def user_details():
     try:

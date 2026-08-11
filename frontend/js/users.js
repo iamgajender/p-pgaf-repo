@@ -47,6 +47,30 @@ function openModal(modalId) {
     if (modalId === "modal-privileges") {
         loadDatabases();
     }
+    if (modalId === "modal-delete") {
+        populateDeleteDropdown();
+    }
+}
+
+function populateDeleteDropdown() {
+    const select = document.getElementById("delete_username");
+    const modifySelect = document.getElementById("modify_username");
+    // Reuse whatever list_users() already populated the Modify dropdown
+    // with, rather than making a second round trip for the same data.
+    select.innerHTML = modifySelect.innerHTML;
+    resetDeleteConfirm();
+}
+
+function resetDeleteConfirm() {
+    document.getElementById("delete_confirm_text").value = "";
+    document.getElementById("delete-submit-btn").disabled = true;
+    document.getElementById("delete-status").hidden = true;
+}
+
+function checkDeleteConfirm() {
+    const username = document.getElementById("delete_username").value;
+    const typed = document.getElementById("delete_confirm_text").value;
+    document.getElementById("delete-submit-btn").disabled = (typed !== username);
 }
 function closeModal(modalId) {
     document.getElementById(modalId).hidden = true;
@@ -284,17 +308,70 @@ async function loadSchemas() {
         schemaSelect.innerHTML = schemas
             .map(s => `<option value="${escapeHtml(s)}" ${s === "public" ? "selected" : ""}>${escapeHtml(s)}</option>`)
             .join("");
+
+        await loadTables();
     } catch (error) {
         console.error(error);
         schemaSelect.innerHTML = `<option value="">Could not load schemas</option>`;
     }
 }
 
+function toggleTablePicker() {
+    const allTables = document.getElementById("priv_all_tables").checked;
+    document.getElementById("priv_table_picker").hidden = allTables;
+}
+
+async function loadTables() {
+    if (!connectionInfo) return;
+    const targetDatabase = document.getElementById("priv_database").value;
+    const schema = document.getElementById("priv_schema").value;
+    const listEl = document.getElementById("priv_table_list");
+
+    if (!targetDatabase || !schema) {
+        listEl.innerHTML = `<span class="field-hint">Select a schema first</span>`;
+        return;
+    }
+
+    listEl.innerHTML = `<span class="field-hint">Loading tables…</span>`;
+
+    try {
+        const response = await fetch("/api/users/tables", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...connectionInfo, target_database: targetDatabase, schema })
+        });
+        const result = await parseJsonSafely(response);
+        const tables = (result && result.tables) || [];
+
+        listEl.innerHTML = tables.length
+            ? tables.map(t => `
+                <div class="checkbox-row">
+                    <input type="checkbox" class="priv-table-checkbox" value="${escapeHtml(t)}" id="tbl_${escapeHtml(t)}">
+                    <label for="tbl_${escapeHtml(t)}">${escapeHtml(t)}</label>
+                </div>
+              `).join("")
+            : `<span class="field-hint">No tables found in this schema</span>`;
+    } catch (error) {
+        console.error(error);
+        listEl.innerHTML = `<span class="field-hint">Could not load tables</span>`;
+    }
+}
+
 async function updatePrivileges() {
     if (!connectionInfo) return;
-    const privileges = ["select", "insert", "update", "delete", "all"]
+    const privileges = ["select", "insert", "update", "delete", "truncate", "references", "trigger", "all"]
         .filter(p => document.getElementById(`priv_${p}`).checked)
         .map(p => p.toUpperCase());
+
+    const applyToAllTables = document.getElementById("priv_all_tables").checked;
+    const tables = applyToAllTables
+        ? []
+        : Array.from(document.querySelectorAll(".priv-table-checkbox:checked")).map(el => el.value);
+
+    if (!applyToAllTables && tables.length === 0) {
+        setStatus("privileges-status", "Select at least one table, or check \"Apply to all tables\".", true);
+        return;
+    }
 
     // Same collision fix as modifyUser() — target_username instead of
     // username, so connectionInfo's superuser username survives the spread.
@@ -303,6 +380,7 @@ async function updatePrivileges() {
         target_username: document.getElementById("priv_username").value,
         target_database: document.getElementById("priv_database").value,
         schema: document.getElementById("priv_schema").value,
+        tables,
         action: document.getElementById("priv_action").value,
         privileges
     };
@@ -328,5 +406,42 @@ async function updatePrivileges() {
         setStatus("privileges-status", error.message || "Could not reach the server.", true);
     } finally {
         setButtonBusy("privileges-submit-btn", false, "Apply");
+    }
+}
+
+async function deleteUser() {
+    if (!connectionInfo) return;
+    const username = document.getElementById("delete_username").value;
+    const typed = document.getElementById("delete_confirm_text").value;
+
+    if (typed !== username) return; // belt-and-suspenders; button is already disabled until this matches
+
+    const payload = {
+        ...connectionInfo,
+        target_username: username
+    };
+
+    setButtonBusy("delete-submit-btn", true, "Delete User");
+    try {
+        const response = await fetch("/api/users/delete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        const result = await parseJsonSafely(response);
+
+        if (!response.ok || result.status !== "success") {
+            setStatus("delete-status", result.message || "Could not delete user.", true);
+            return;
+        }
+
+        setStatus("delete-status", result.message || "User deleted.", false);
+        await loadUserList();
+        setTimeout(() => closeModal("modal-delete"), 1200);
+    } catch (error) {
+        console.error(error);
+        setStatus("delete-status", error.message || "Could not reach the server.", true);
+    } finally {
+        setButtonBusy("delete-submit-btn", false, "Delete User");
     }
 }

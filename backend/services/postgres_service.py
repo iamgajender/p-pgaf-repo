@@ -961,3 +961,265 @@ class PostgresService:
 
             if conn:
                 conn.close()
+
+    ##############################################################
+
+    def delete_user(self, data):
+
+        conn = None
+        cursor = None
+
+        try:
+
+            username = self._require_username(data.get("target_username"))
+
+            conn = self._connect(data)
+            cursor = conn.cursor()
+
+            cursor.execute(
+                sql.SQL("DROP ROLE {}").format(sql.Identifier(username))
+            )
+            conn.commit()
+
+            return {
+                "status": "success",
+                "message": f'User "{username}" deleted successfully.'
+            }
+
+        except errors.UndefinedObject:
+
+            if conn:
+                conn.rollback()
+
+            return {
+                "status": "error",
+                "message": f'No role named "{data.get("target_username")}" was found.'
+            }
+
+        except errors.DependentObjectsStillExist as e:
+
+            if conn:
+                conn.rollback()
+
+            return {
+                "status": "error",
+                "message": (
+                    f'Cannot delete "{data.get("target_username")}" — it still owns '
+                    f'objects or has active grants. Reassign or drop those first. '
+                    f'({str(e).strip()})'
+                )
+            }
+
+        except Exception as e:
+
+            if conn:
+                conn.rollback()
+
+            return {
+                "status": "error",
+                "message": str(e)
+            }
+
+        finally:
+
+            if cursor:
+                cursor.close()
+
+            if conn:
+                conn.close()
+
+    ##############################################################
+
+    def modify_role(self, data):
+
+        conn = None
+        cursor = None
+
+        try:
+
+            role_name = self._require_username(data.get("target_role"))
+
+            conn = self._connect(data)
+            cursor = conn.cursor()
+
+            # Confirm the role actually exists before doing anything else
+            # — gives a clean error instead of failing partway through a
+            # multi-statement grant sequence.
+            cursor.execute(
+                "SELECT rolcanlogin FROM pg_roles WHERE rolname = %s",
+                (role_name,)
+            )
+            row = cursor.fetchone()
+            if row is None:
+                return {
+                    "status": "error",
+                    "message": f'No role named "{role_name}" was found.'
+                }
+
+            changed = []
+
+            # Optional LOGIN/NOLOGIN change
+            requested_login = data.get("can_login")
+            if requested_login is not None and bool(requested_login) != row[0]:
+                cursor.execute(
+                    sql.SQL("ALTER ROLE {} WITH {}").format(
+                        sql.Identifier(role_name),
+                        sql.SQL("LOGIN" if requested_login else "NOLOGIN")
+                    )
+                )
+                changed.append("login attribute")
+
+            target_database = data.get("target_database")
+            schema = str(data.get("schema") or "public").strip()
+
+            db_privileges = [p.strip().upper() for p in (data.get("database_privileges") or []) if p]
+            schema_privileges = [p.strip().upper() for p in (data.get("schema_privileges") or []) if p]
+            table_privileges = [p.strip().upper() for p in (data.get("table_privileges") or []) if p]
+
+            invalid_db = [p for p in db_privileges if p not in ALLOWED_DATABASE_PRIVILEGES]
+            invalid_schema = [p for p in schema_privileges if p not in ALLOWED_SCHEMA_PRIVILEGES]
+            invalid_table = [p for p in table_privileges if p not in ALLOWED_PRIVILEGES]
+            if invalid_db or invalid_schema or invalid_table:
+                return {
+                    "status": "error",
+                    "message": f"Unsupported privilege(s): {', '.join(invalid_db + invalid_schema + invalid_table)}"
+                }
+
+            if "ALL" in table_privileges:
+                table_privileges = ["ALL"]
+
+            apply_existing = bool(data.get("apply_existing", True))
+            apply_future = bool(data.get("apply_future", True))
+
+            conn.commit()  # commit the LOGIN change before switching connections
+            cursor.close()
+            conn.close()
+            conn = None
+            cursor = None
+
+            if target_database and (db_privileges or schema_privileges or table_privileges):
+
+                connect_data = dict(data)
+                connect_data["database"] = target_database
+
+                conn = self._connect(connect_data)
+                cursor = conn.cursor()
+
+                if db_privileges:
+                    priv_clause = sql.SQL(", ").join(sql.SQL(p) for p in db_privileges)
+                    cursor.execute(
+                        sql.SQL("GRANT {} ON DATABASE {} TO {}").format(
+                            priv_clause, sql.Identifier(target_database), sql.Identifier(role_name)
+                        )
+                    )
+                    changed.append(f'database privileges ({", ".join(db_privileges)})')
+
+                if schema_privileges:
+                    priv_clause = sql.SQL(", ").join(sql.SQL(p) for p in schema_privileges)
+                    cursor.execute(
+                        sql.SQL("GRANT {} ON SCHEMA {} TO {}").format(
+                            priv_clause, sql.Identifier(schema), sql.Identifier(role_name)
+                        )
+                    )
+                    changed.append(f'schema privileges ({", ".join(schema_privileges)})')
+
+                if table_privileges:
+                    priv_clause = sql.SQL(", ").join(sql.SQL(p) for p in table_privileges)
+
+                    if apply_existing:
+                        cursor.execute(
+                            sql.SQL("GRANT {} ON ALL TABLES IN SCHEMA {} TO {}").format(
+                                priv_clause, sql.Identifier(schema), sql.Identifier(role_name)
+                            )
+                        )
+                        changed.append("existing tables")
+
+                    if apply_future:
+                        cursor.execute(
+                            sql.SQL(
+                                "ALTER DEFAULT PRIVILEGES FOR ROLE {} IN SCHEMA {} "
+                                "GRANT {} ON TABLES TO {}"
+                            ).format(
+                                sql.Identifier(role_name), sql.Identifier(schema),
+                                priv_clause, sql.Identifier(role_name)
+                            )
+                        )
+                        changed.append("future tables (default privileges)")
+
+                conn.commit()
+
+            if not changed:
+                return {
+                    "status": "success",
+                    "message": f'No changes were needed for "{role_name}".'
+                }
+
+            return {
+                "status": "success",
+                "message": f'Updated {", ".join(changed)} for "{role_name}".'
+            }
+
+        except Exception as e:
+
+            if conn:
+                conn.rollback()
+
+            return {
+                "status": "error",
+                "message": str(e)
+            }
+
+        finally:
+
+            if cursor:
+                cursor.close()
+
+            if conn:
+                conn.close()
+
+    ##############################################################
+
+    def get_role_members(self, data):
+
+        conn = None
+        cursor = None
+
+        try:
+
+            role_name = self._require_username(data.get("target_role"))
+
+            conn = self._connect(data)
+            cursor = conn.cursor()
+
+            cursor.execute(
+                """
+                SELECT m.rolname
+                FROM pg_auth_members am
+                JOIN pg_roles r ON am.roleid = r.oid
+                JOIN pg_roles m ON am.member = m.oid
+                WHERE r.rolname = %s
+                ORDER BY m.rolname
+                """,
+                (role_name,)
+            )
+            members = [row[0] for row in cursor.fetchall()]
+
+            return {
+                "status": "success",
+                "members": members
+            }
+
+        except Exception as e:
+
+            return {
+                "status": "error",
+                "message": str(e)
+            }
+
+        finally:
+
+            if cursor:
+                cursor.close()
+
+            if conn:
+                conn.close()
