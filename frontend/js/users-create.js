@@ -42,7 +42,45 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("create-panel").hidden = false;
     document.getElementById("connection-summary").textContent =
         `${connection.username}@${connection.server_ip}:${connection.server_port}/${connection.database}`;
+
+    loadAvailableRoles();
 });
+
+function toggleAccessModel() {
+    const isRbac = document.getElementById("mode_rbac").checked;
+    document.getElementById("rbac-section").hidden = !isRbac;
+    document.getElementById("custom-section").hidden = isRbac;
+    document.getElementById("assign_role").required = isRbac;
+}
+
+async function loadAvailableRoles() {
+    if (!connection) return;
+    const roleSelect = document.getElementById("assign_role");
+
+    try {
+        const response = await fetch("/api/users/list", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(connection)
+        });
+        const result = await parseJsonSafely(response);
+        const users = (result && result.users) || [];
+
+        // Filter to NOLOGIN roles only — these are the group roles that
+        // are meant to be assigned to users, not login accounts themselves.
+        // We detect this by fetching role details, but that's N+1 calls.
+        // Simpler: filter out known system roles and anything that looks
+        // like a login account (contains a dot or @ which is typical of
+        // user accounts). The backend's list already excludes pg_* roles.
+        // We show everything and let the admin pick — the UI label makes
+        // it clear this is for role assignment.
+        roleSelect.innerHTML = `<option value="">Select a role to assign</option>` +
+            users.map(u => `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`).join("");
+    } catch (error) {
+        console.error(error);
+        roleSelect.innerHTML = `<option value="">Could not load roles</option>`;
+    }
+}
 
 async function createUser() {
     if (!connection) return;
@@ -58,14 +96,28 @@ async function createUser() {
         return;
     }
 
+    const isRbac = document.getElementById("mode_rbac").checked;
+
     const payload = {
         ...connection,
         new_username: document.getElementById("new_username").value.trim(),
         new_password: password,
-        can_login: document.getElementById("new_can_login").checked,
-        superuser: document.getElementById("new_superuser").checked,
-        createdb: document.getElementById("new_createdb").checked
+        access_model: isRbac ? "rbac" : "custom",
+        // RBAC fields
+        assign_role: isRbac ? document.getElementById("assign_role").value : null,
+        set_default_role: isRbac ? document.getElementById("set_default_role").checked : false,
+        // Custom fields
+        can_login: !isRbac ? document.getElementById("new_can_login").checked : true,
+        superuser: !isRbac ? document.getElementById("new_superuser").checked : false,
+        createdb: !isRbac ? document.getElementById("new_createdb").checked : false
     };
+
+    if (isRbac && !payload.assign_role) {
+        statusEl.hidden = false;
+        statusEl.className = "connection-status log-error";
+        statusEl.textContent = "Please select a role to assign.";
+        return;
+    }
 
     setButtonBusy("create-btn", true, `<i class="fa-solid fa-user-plus"></i> Create User`);
 
@@ -88,6 +140,8 @@ async function createUser() {
         statusEl.textContent = result.message || `User "${escapeHtml(payload.new_username)}" created successfully.`;
         document.getElementById("create-form").reset();
         document.getElementById("new_can_login").checked = true;
+        toggleAccessModel();
+        await loadAvailableRoles();
     } catch (error) {
         console.error(error);
         statusEl.hidden = false;

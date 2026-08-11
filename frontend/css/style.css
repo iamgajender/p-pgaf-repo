@@ -816,3 +816,54 @@ footer {
 @media (max-width: 640px) {
   .modal { width: 100%; padding: 22px 20px; }
 }
+
+.table-picker {
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1px solid var(--line-300);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.table-picker .checkbox-row {
+  margin-bottom: 6px;
+}
+.table-picker .checkbox-row:last-child {
+  margin-bottom: 0;
+}
+
+/* =========================================================
+   RBAC / Custom access model toggle (users/create.html)
+   ========================================================= */
+.access-model-toggle {
+  display: flex;
+  gap: 14px;
+  margin: 14px 0 20px;
+}
+.access-option {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 2px solid var(--line-200);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.access-option input[type="radio"] { margin-top: 2px; accent-color: var(--pg-blue-600); }
+.access-option:has(input:checked) {
+  border-color: var(--pg-blue-500);
+  background: var(--pg-blue-100);
+}
+.access-label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.access-label i { color: var(--pg-blue-600); font-size: 1rem; margin-bottom: 2px; }
+.access-label strong { font-size: 0.9rem; color: var(--ink-900); }
+.access-label small { font-size: 0.775rem; color: var(--ink-500); line-height: 1.4; }
+
+@media (max-width: 640px) {
+  .access-model-toggle { flex-direction: column; }
+}

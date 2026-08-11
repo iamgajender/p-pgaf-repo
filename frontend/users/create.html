@@ -38,6 +38,12 @@
             </a>
         </li>
         <li>
+            <a href="../roles/index.html">
+                <i class="fa-solid fa-user-shield"></i>
+                Role Management
+            </a>
+        </li>
+        <li>
             <a href="#">
                 <i class="fa-solid fa-network-wired"></i>
                 High Availability
@@ -89,17 +95,61 @@
                 </div>
             </div>
 
-            <div class="checkbox-row">
-                <input type="checkbox" id="new_can_login" checked>
-                <label for="new_can_login">Can login</label>
+            <hr>
+
+            <h3>Access Model</h3>
+            <div class="access-model-toggle">
+                <label class="access-option">
+                    <input type="radio" name="access_model" value="rbac" id="mode_rbac" checked
+                           onchange="toggleAccessModel()">
+                    <span class="access-label">
+                        <i class="fa-solid fa-user-shield"></i>
+                        <strong>RBAC</strong>
+                        <small>Assign an existing role — user inherits all its privileges</small>
+                    </span>
+                </label>
+                <label class="access-option">
+                    <input type="radio" name="access_model" value="custom" id="mode_custom"
+                           onchange="toggleAccessModel()">
+                    <span class="access-label">
+                        <i class="fa-solid fa-sliders"></i>
+                        <strong>Custom</strong>
+                        <small>Set login/superuser/createdb directly on the user</small>
+                    </span>
+                </label>
             </div>
-            <div class="checkbox-row">
-                <input type="checkbox" id="new_superuser">
-                <label for="new_superuser">Superuser</label>
+
+            <!-- RBAC section -->
+            <div id="rbac-section">
+                <div class="form-field" style="margin-top:16px;">
+                    <label for="assign_role">Assign Role</label>
+                    <select id="assign_role" required>
+                        <option value="">Loading roles…</option>
+                    </select>
+                    <span class="field-hint">User will inherit all privileges assigned to this role.</span>
+                </div>
+                <div class="checkbox-row" style="margin-top:10px;">
+                    <input type="checkbox" id="set_default_role" checked>
+                    <label for="set_default_role">
+                        Set as default role (<code>ALTER ROLE … SET ROLE …</code>)
+                    </label>
+                </div>
             </div>
-            <div class="checkbox-row">
-                <input type="checkbox" id="new_createdb">
-                <label for="new_createdb">Can create databases</label>
+
+            <!-- Custom section (hidden by default) -->
+            <div id="custom-section" hidden>
+                <div class="checkbox-row" style="margin-top:16px;">
+                    <input type="checkbox" id="new_can_login" checked>
+                    <label for="new_can_login">Can login</label>
+                </div>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="new_superuser">
+                    <label for="new_superuser">Superuser</label>
+                </div>
+                <div class="checkbox-row">
+                    <input type="checkbox" id="new_createdb">
+                    <label for="new_createdb">Can create databases</label>
+                </div>
             </div>
 
             <div id="create-status" class="connection-status" hidden></div>

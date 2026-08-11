@@ -7,7 +7,16 @@ from psycopg import errors
 # directly into GRANT/REVOKE statements (they can't be query parameters —
 # Postgres doesn't allow that), so anything not in this allow-list is
 # rejected before it ever reaches a query.
-ALLOWED_PRIVILEGES = {"SELECT", "INSERT", "UPDATE", "DELETE", "ALL"}
+ALLOWED_PRIVILEGES = {
+    "SELECT", "INSERT", "UPDATE", "DELETE",
+    "TRUNCATE", "REFERENCES", "TRIGGER", "ALL"
+}
+
+# Privileges valid at the DATABASE and SCHEMA grant levels — distinct
+# from table privileges above, since Postgres scopes these differently
+# (e.g. CONNECT only makes sense on a database, USAGE only on a schema).
+ALLOWED_DATABASE_PRIVILEGES = {"CONNECT", "CREATE", "TEMP"}
+ALLOWED_SCHEMA_PRIVILEGES = {"USAGE", "CREATE"}
 
 
 class PostgresService:
@@ -225,39 +234,69 @@ class PostgresService:
                     "message": "Password is required."
                 }
 
-            can_login = bool(data.get("can_login", True))
-            superuser = bool(data.get("superuser", False))
-            createdb = bool(data.get("createdb", False))
+            access_model = str(data.get("access_model") or "custom").strip().lower()
+            is_rbac = access_model == "rbac"
 
             conn = self._connect(data)
             cursor = conn.cursor()
 
-            # sql.Identifier safely quotes the role name (handles case,
-            # special characters, reserved words). The password is passed
-            # as a query parameter (%s) rather than spliced into the
-            # string, so psycopg escapes it the same way it would for any
-            # other value.
-            # NOTE: the PASSWORD clause in CREATE ROLE / ALTER ROLE is part
-            # of Postgres's utility-statement grammar and does NOT accept
-            # a bind parameter ($1/%s) — that's what threw the "syntax
-            # error at or near $1" you hit. sql.Literal() still escapes
-            # the value safely, it just embeds it as a quoted literal in
-            # the statement text instead of a separate parameter.
-            query = sql.SQL("CREATE ROLE {} WITH {} {} {} PASSWORD {}").format(
-                sql.Identifier(username),
-                sql.SQL("LOGIN" if can_login else "NOLOGIN"),
-                sql.SQL("SUPERUSER" if superuser else "NOSUPERUSER"),
-                sql.SQL("CREATEDB" if createdb else "NOCREATEDB"),
-                sql.Literal(password),
-            )
+            if is_rbac:
+                # RBAC flow:
+                # 1. CREATE ROLE <user> LOGIN PASSWORD <pw>
+                # 2. GRANT <role> TO <user>
+                # 3. (optional) ALTER ROLE <user> SET ROLE <role>
+                assign_role = self._require_username(data.get("assign_role"))
 
-            cursor.execute(query)
-            conn.commit()
+                cursor.execute(
+                    sql.SQL("CREATE ROLE {} WITH LOGIN PASSWORD {}").format(
+                        sql.Identifier(username), sql.Literal(password)
+                    )
+                )
+                cursor.execute(
+                    sql.SQL("GRANT {} TO {}").format(
+                        sql.Identifier(assign_role), sql.Identifier(username)
+                    )
+                )
+                if bool(data.get("set_default_role", True)):
+                    cursor.execute(
+                        sql.SQL("ALTER ROLE {} SET ROLE {}").format(
+                            sql.Identifier(username), sql.Identifier(assign_role)
+                        )
+                    )
+                conn.commit()
+                return {
+                    "status": "success",
+                    "message": (
+                        f'User "{username}" created and assigned to role '
+                        f'"{assign_role}" successfully.'
+                    )
+                }
 
-            return {
-                "status": "success",
-                "message": f'User "{username}" created successfully.'
-            }
+            else:
+                # Custom flow — direct attributes, no role assignment
+                can_login = bool(data.get("can_login", True))
+                superuser = bool(data.get("superuser", False))
+                createdb = bool(data.get("createdb", False))
+
+                # NOTE: the PASSWORD clause in CREATE ROLE / ALTER ROLE is
+                # part of Postgres's utility-statement grammar and does NOT
+                # accept a bind parameter ($1/%s). sql.Literal() still
+                # escapes the value safely — it embeds it as a quoted
+                # literal in the statement text instead of a parameter.
+                cursor.execute(
+                    sql.SQL("CREATE ROLE {} WITH {} {} {} PASSWORD {}").format(
+                        sql.Identifier(username),
+                        sql.SQL("LOGIN" if can_login else "NOLOGIN"),
+                        sql.SQL("SUPERUSER" if superuser else "NOSUPERUSER"),
+                        sql.SQL("CREATEDB" if createdb else "NOCREATEDB"),
+                        sql.Literal(password),
+                    )
+                )
+                conn.commit()
+                return {
+                    "status": "success",
+                    "message": f'User "{username}" created successfully.'
+                }
 
         except errors.DuplicateObject:
 
@@ -585,6 +624,63 @@ class PostgresService:
 
     ##############################################################
 
+    def list_tables(self, data):
+
+        conn = None
+        cursor = None
+
+        try:
+
+            target_database = data.get("target_database")
+            schema = data.get("schema")
+
+            if not target_database or not schema:
+                return {
+                    "status": "error",
+                    "message": "target_database and schema are required."
+                }
+
+            connect_data = dict(data)
+            connect_data["database"] = target_database
+
+            conn = self._connect(connect_data)
+            cursor = conn.cursor()
+
+            cursor.execute(
+                """
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = %s
+                  AND table_type = 'BASE TABLE'
+                ORDER BY table_name
+                """,
+                (schema,)
+            )
+
+            tables = [row[0] for row in cursor.fetchall()]
+
+            return {
+                "status": "success",
+                "tables": tables
+            }
+
+        except Exception as e:
+
+            return {
+                "status": "error",
+                "message": str(e)
+            }
+
+        finally:
+
+            if cursor:
+                cursor.close()
+
+            if conn:
+                conn.close()
+
+    ##############################################################
+
     def update_privileges(self, data):
 
         conn = None
@@ -618,9 +714,18 @@ class PostgresService:
                     "message": f"Unsupported privilege(s): {', '.join(invalid)}"
                 }
 
-            # "ALL" supersedes anything else selected alongside it.
+            # "ALL" (the privilege, e.g. ALL PRIVILEGES) supersedes
+            # anything else selected alongside it.
             if "ALL" in privileges:
                 privileges = ["ALL"]
+
+            # tables is a list of specific table names, or empty/absent
+            # to mean "every table in the schema" (the old behavior).
+            # This is the fix for the real gap flagged in review: GRANT
+            # ON ALL TABLES IN SCHEMA has no way to target just
+            # "customers" — now it only does that when nothing specific
+            # was selected.
+            requested_tables = [t.strip() for t in (data.get("tables") or []) if t and t.strip()]
 
             # Privileges are per-database — connect to the database the
             # privileges should apply to, not necessarily the database the
@@ -635,14 +740,26 @@ class PostgresService:
                 sql.SQL(p) for p in privileges
             )
 
-            if action == "grant":
-                query = sql.SQL(
-                    "GRANT {} ON ALL TABLES IN SCHEMA {} TO {}"
-                ).format(privilege_clause, sql.Identifier(schema), sql.Identifier(username))
+            verb = sql.SQL("GRANT") if action == "grant" else sql.SQL("REVOKE")
+            preposition = sql.SQL("TO") if action == "grant" else sql.SQL("FROM")
+
+            if requested_tables:
+                target_clause = sql.SQL("TABLE {}").format(
+                    sql.SQL(", ").join(sql.Identifier(schema, t) for t in requested_tables)
+                )
+                target_description = f'table(s) {", ".join(requested_tables)}'
             else:
-                query = sql.SQL(
-                    "REVOKE {} ON ALL TABLES IN SCHEMA {} FROM {}"
-                ).format(privilege_clause, sql.Identifier(schema), sql.Identifier(username))
+                target_clause = sql.SQL("ALL TABLES IN SCHEMA {}").format(sql.Identifier(schema))
+                target_description = f'all tables in schema "{schema}"'
+
+            if action == "grant":
+                query = sql.SQL("GRANT {} ON {} TO {}").format(
+                    privilege_clause, target_clause, sql.Identifier(username)
+                )
+            else:
+                query = sql.SQL("REVOKE {} ON {} FROM {}").format(
+                    privilege_clause, target_clause, sql.Identifier(username)
+                )
 
             cursor.execute(query)
             conn.commit()
@@ -651,7 +768,7 @@ class PostgresService:
                 "status": "success",
                 "message": (
                     f'{"Granted" if action == "grant" else "Revoked"} '
-                    f'{", ".join(privileges)} on schema "{schema}" in '
+                    f'{", ".join(privileges)} on {target_description} in '
                     f'"{connect_data["database"]}" '
                     f'{"to" if action == "grant" else "from"} "{username}".'
                 )
@@ -665,6 +782,166 @@ class PostgresService:
             return {
                 "status": "error",
                 "message": f'No role named "{data.get("target_username")}" was found.'
+            }
+
+        except Exception as e:
+
+            if conn:
+                conn.rollback()
+
+            return {
+                "status": "error",
+                "message": str(e)
+            }
+
+        finally:
+
+            if cursor:
+                cursor.close()
+
+            if conn:
+                conn.close()
+
+    ##############################################################
+
+    def create_role(self, data):
+
+        conn = None
+        cursor = None
+
+        try:
+
+            role_name = self._require_username(data.get("role_name"))
+            can_login = bool(data.get("can_login", False))
+
+            target_database = data.get("target_database")
+            schema = str(data.get("schema") or "public").strip()
+
+            db_privileges = [p.strip().upper() for p in (data.get("database_privileges") or []) if p]
+            schema_privileges = [p.strip().upper() for p in (data.get("schema_privileges") or []) if p]
+            table_privileges = [p.strip().upper() for p in (data.get("table_privileges") or []) if p]
+
+            invalid_db = [p for p in db_privileges if p not in ALLOWED_DATABASE_PRIVILEGES]
+            if invalid_db:
+                return {
+                    "status": "error",
+                    "message": f"Unsupported database privilege(s): {', '.join(invalid_db)}"
+                }
+
+            invalid_schema = [p for p in schema_privileges if p not in ALLOWED_SCHEMA_PRIVILEGES]
+            if invalid_schema:
+                return {
+                    "status": "error",
+                    "message": f"Unsupported schema privilege(s): {', '.join(invalid_schema)}"
+                }
+
+            invalid_table = [p for p in table_privileges if p not in ALLOWED_PRIVILEGES]
+            if invalid_table:
+                return {
+                    "status": "error",
+                    "message": f"Unsupported table privilege(s): {', '.join(invalid_table)}"
+                }
+
+            if "ALL" in table_privileges:
+                table_privileges = ["ALL"]
+
+            apply_existing = bool(data.get("apply_existing", True))
+            apply_future = bool(data.get("apply_future", True))
+
+            # Step 1: CREATE ROLE. Roles are cluster-wide (not tied to a
+            # database), so this uses the original connection info as-is.
+            conn = self._connect(data)
+            cursor = conn.cursor()
+
+            query = sql.SQL("CREATE ROLE {} {}").format(
+                sql.Identifier(role_name),
+                sql.SQL("LOGIN" if can_login else "NOLOGIN")
+            )
+            cursor.execute(query)
+            conn.commit()
+
+            cursor.close()
+            conn.close()
+            conn = None
+            cursor = None
+
+            granted = []
+
+            # Step 2: everything below is per-database, so it needs its
+            # own connection to target_database — same reason
+            # update_privileges() reconnects for schema/table grants.
+            if target_database and (db_privileges or schema_privileges or table_privileges):
+
+                connect_data = dict(data)
+                connect_data["database"] = target_database
+
+                conn = self._connect(connect_data)
+                cursor = conn.cursor()
+
+                if db_privileges:
+                    priv_clause = sql.SQL(", ").join(sql.SQL(p) for p in db_privileges)
+                    cursor.execute(
+                        sql.SQL("GRANT {} ON DATABASE {} TO {}").format(
+                            priv_clause, sql.Identifier(target_database), sql.Identifier(role_name)
+                        )
+                    )
+                    granted.append(f'database privileges ({", ".join(db_privileges)})')
+
+                if schema_privileges:
+                    priv_clause = sql.SQL(", ").join(sql.SQL(p) for p in schema_privileges)
+                    cursor.execute(
+                        sql.SQL("GRANT {} ON SCHEMA {} TO {}").format(
+                            priv_clause, sql.Identifier(schema), sql.Identifier(role_name)
+                        )
+                    )
+                    granted.append(f'schema privileges ({", ".join(schema_privileges)})')
+
+                if table_privileges:
+                    priv_clause = sql.SQL(", ").join(sql.SQL(p) for p in table_privileges)
+
+                    if apply_existing:
+                        cursor.execute(
+                            sql.SQL("GRANT {} ON ALL TABLES IN SCHEMA {} TO {}").format(
+                                priv_clause, sql.Identifier(schema), sql.Identifier(role_name)
+                            )
+                        )
+                        granted.append("existing tables")
+
+                    if apply_future:
+                        # This is the piece that keeps new tables from
+                        # needing a manual GRANT every time — it only
+                        # applies to tables created BY role_name itself
+                        # going forward, which matches the "owner role
+                        # creates objects, members inherit access"
+                        # pattern this whole design is built around.
+                        cursor.execute(
+                            sql.SQL(
+                                "ALTER DEFAULT PRIVILEGES FOR ROLE {} IN SCHEMA {} "
+                                "GRANT {} ON TABLES TO {}"
+                            ).format(
+                                sql.Identifier(role_name), sql.Identifier(schema),
+                                priv_clause, sql.Identifier(role_name)
+                            )
+                        )
+                        granted.append("future tables (default privileges)")
+
+                conn.commit()
+
+            summary = f' with {", ".join(granted)}' if granted else ""
+
+            return {
+                "status": "success",
+                "message": f'Role "{role_name}" created successfully{summary}.'
+            }
+
+        except errors.DuplicateObject:
+
+            if conn:
+                conn.rollback()
+
+            return {
+                "status": "error",
+                "message": f'A role named "{data.get("role_name")}" already exists.'
             }
 
         except Exception as e:
