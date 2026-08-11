@@ -234,39 +234,69 @@ class PostgresService:
                     "message": "Password is required."
                 }
 
-            can_login = bool(data.get("can_login", True))
-            superuser = bool(data.get("superuser", False))
-            createdb = bool(data.get("createdb", False))
+            access_model = str(data.get("access_model") or "custom").strip().lower()
+            is_rbac = access_model == "rbac"
 
             conn = self._connect(data)
             cursor = conn.cursor()
 
-            # sql.Identifier safely quotes the role name (handles case,
-            # special characters, reserved words). The password is passed
-            # as a query parameter (%s) rather than spliced into the
-            # string, so psycopg escapes it the same way it would for any
-            # other value.
-            # NOTE: the PASSWORD clause in CREATE ROLE / ALTER ROLE is part
-            # of Postgres's utility-statement grammar and does NOT accept
-            # a bind parameter ($1/%s) — that's what threw the "syntax
-            # error at or near $1" you hit. sql.Literal() still escapes
-            # the value safely, it just embeds it as a quoted literal in
-            # the statement text instead of a separate parameter.
-            query = sql.SQL("CREATE ROLE {} WITH {} {} {} PASSWORD {}").format(
-                sql.Identifier(username),
-                sql.SQL("LOGIN" if can_login else "NOLOGIN"),
-                sql.SQL("SUPERUSER" if superuser else "NOSUPERUSER"),
-                sql.SQL("CREATEDB" if createdb else "NOCREATEDB"),
-                sql.Literal(password),
-            )
+            if is_rbac:
+                # RBAC flow:
+                # 1. CREATE ROLE <user> LOGIN PASSWORD <pw>
+                # 2. GRANT <role> TO <user>
+                # 3. (optional) ALTER ROLE <user> SET ROLE <role>
+                assign_role = self._require_username(data.get("assign_role"))
 
-            cursor.execute(query)
-            conn.commit()
+                cursor.execute(
+                    sql.SQL("CREATE ROLE {} WITH LOGIN PASSWORD {}").format(
+                        sql.Identifier(username), sql.Literal(password)
+                    )
+                )
+                cursor.execute(
+                    sql.SQL("GRANT {} TO {}").format(
+                        sql.Identifier(assign_role), sql.Identifier(username)
+                    )
+                )
+                if bool(data.get("set_default_role", True)):
+                    cursor.execute(
+                        sql.SQL("ALTER ROLE {} SET ROLE {}").format(
+                            sql.Identifier(username), sql.Identifier(assign_role)
+                        )
+                    )
+                conn.commit()
+                return {
+                    "status": "success",
+                    "message": (
+                        f'User "{username}" created and assigned to role '
+                        f'"{assign_role}" successfully.'
+                    )
+                }
 
-            return {
-                "status": "success",
-                "message": f'User "{username}" created successfully.'
-            }
+            else:
+                # Custom flow — direct attributes, no role assignment
+                can_login = bool(data.get("can_login", True))
+                superuser = bool(data.get("superuser", False))
+                createdb = bool(data.get("createdb", False))
+
+                # NOTE: the PASSWORD clause in CREATE ROLE / ALTER ROLE is
+                # part of Postgres's utility-statement grammar and does NOT
+                # accept a bind parameter ($1/%s). sql.Literal() still
+                # escapes the value safely — it embeds it as a quoted
+                # literal in the statement text instead of a parameter.
+                cursor.execute(
+                    sql.SQL("CREATE ROLE {} WITH {} {} {} PASSWORD {}").format(
+                        sql.Identifier(username),
+                        sql.SQL("LOGIN" if can_login else "NOLOGIN"),
+                        sql.SQL("SUPERUSER" if superuser else "NOSUPERUSER"),
+                        sql.SQL("CREATEDB" if createdb else "NOCREATEDB"),
+                        sql.Literal(password),
+                    )
+                )
+                conn.commit()
+                return {
+                    "status": "success",
+                    "message": f'User "{username}" created successfully.'
+                }
 
         except errors.DuplicateObject:
 
@@ -648,6 +678,10 @@ class PostgresService:
 
             if conn:
                 conn.close()
+
+    ##############################################################
+
+    def update_privileges(self, data):
 
         conn = None
         cursor = None
