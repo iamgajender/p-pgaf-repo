@@ -175,6 +175,23 @@
                 <input type="checkbox" id="modify_superuser">
                 <label for="modify_superuser">Superuser</label>
             </div>
+
+            <hr>
+
+            <div class="form-field">
+                <label for="modify_assign_role">Assigned Role</label>
+                <select id="modify_assign_role">
+                    <option value="">No change</option>
+                </select>
+                <span class="field-hint" id="modify_current_role_hint"></span>
+            </div>
+            <div class="checkbox-row">
+                <input type="checkbox" id="modify_set_default_role" checked>
+                <label for="modify_set_default_role">
+                    Set as default role (<code>ALTER ROLE … SET ROLE …</code>)
+                </label>
+            </div>
+
             <div id="modify-status" class="modal-status" hidden></div>
             <div class="modal-actions">
                 <button type="button" class="btn btn-outline" onclick="closeModal('modal-modify')">Cancel</button>

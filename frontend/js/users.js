@@ -197,6 +197,24 @@ async function loadUserDetails() {
     const username = document.getElementById("modify_username").value;
     if (!username) return;
 
+    // Populate the role dropdown with every available role, same source
+    // as Create User's Assign Role list.
+    const roleSelect = document.getElementById("modify_assign_role");
+    try {
+        const roleResponse = await fetch("/api/users/list", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(connectionInfo)
+        });
+        const roleResult = await parseJsonSafely(roleResponse);
+        const roles = (roleResult && roleResult.users) || [];
+        roleSelect.innerHTML = `<option value="">No change</option>` +
+            roles.filter(r => r !== username)
+                 .map(r => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join("");
+    } catch (error) {
+        console.error(error);
+    }
+
     try {
         const response = await fetch("/api/users/details", {
             method: "POST",
@@ -213,6 +231,20 @@ async function loadUserDetails() {
         document.getElementById("modify_can_login").checked = !!result.attributes.can_login;
         document.getElementById("modify_superuser").checked = !!result.attributes.superuser;
         document.getElementById("modify_password").value = "";
+
+        const assignedRoles = result.attributes.assigned_roles || [];
+        const hint = document.getElementById("modify_current_role_hint");
+        if (assignedRoles.length === 0) {
+            hint.textContent = "No role currently assigned.";
+        } else if (assignedRoles.length === 1) {
+            hint.textContent = `Currently: ${assignedRoles[0]}`;
+        } else {
+            hint.textContent = `Currently: ${assignedRoles.join(", ")}`;
+        }
+        // Leave the dropdown on "No change" by default — selecting a
+        // role is an explicit reassignment action, not something that
+        // should happen just from opening the modal.
+        roleSelect.value = "";
     } catch (error) {
         console.error(error);
     }
@@ -227,12 +259,15 @@ async function modifyUser() {
     // superuser's credentials with the target user's name and new
     // password, and the backend would try to connect AS the target user
     // (this was the "password authentication failed for user X" bug).
+    const assignRole = document.getElementById("modify_assign_role").value;
     const payload = {
         ...connectionInfo,
         target_username: document.getElementById("modify_username").value,
         new_password: document.getElementById("modify_password").value || null,
         can_login: document.getElementById("modify_can_login").checked,
-        superuser: document.getElementById("modify_superuser").checked
+        superuser: document.getElementById("modify_superuser").checked,
+        assign_role: assignRole || null,
+        set_default_role: assignRole ? document.getElementById("modify_set_default_role").checked : false
     };
 
     setButtonBusy("modify-submit-btn", true, "Save Changes");

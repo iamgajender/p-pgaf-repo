@@ -359,6 +359,23 @@ class PostgresService:
 
             can_login, superuser, createdb, createrole, replication, conn_limit, valid_until = row
 
+            # Roles currently granted to this user — excludes pg_* built-in
+            # predefined roles, same filter as list_users(), so this
+            # reflects actual RBAC role assignments, not implicit ones.
+            cursor.execute(
+                r"""
+                SELECT r.rolname
+                FROM pg_auth_members m
+                JOIN pg_roles r ON r.oid = m.roleid
+                JOIN pg_roles u ON u.oid = m.member
+                WHERE u.rolname = %s
+                  AND r.rolname NOT LIKE 'pg\_%%'
+                ORDER BY r.rolname
+                """,
+                (username,)
+            )
+            assigned_roles = [row[0] for row in cursor.fetchall()]
+
             return {
                 "status": "success",
                 "attributes": {
@@ -368,7 +385,8 @@ class PostgresService:
                     "createrole": createrole,
                     "replication": replication,
                     "connection_limit": conn_limit,
-                    "valid_until": valid_until.isoformat() if valid_until else None
+                    "valid_until": valid_until.isoformat() if valid_until else None,
+                    "assigned_roles": assigned_roles
                 }
             }
 
@@ -468,7 +486,10 @@ class PostgresService:
                 )
                 changed.append("valid_until")
 
-            if not clauses and not valid_until_clause and not password:
+            assign_role = data.get("assign_role") or None
+            set_default_role = bool(data.get("set_default_role", False))
+
+            if not clauses and not valid_until_clause and not password and not assign_role:
                 return {
                     "status": "success",
                     "message": f'No changes were needed — "{username}" already matches the requested settings.'
@@ -489,6 +510,49 @@ class PostgresService:
                 cursor.execute(pw_query)
                 changed.append("password")
 
+            if assign_role:
+                # Find the user's current role memberships (excluding
+                # pg_* built-ins) so we can revoke the old one(s) before
+                # granting the new one — a user is meant to hold one
+                # business role at a time in this design, not accumulate
+                # them across every reassignment.
+                cursor.execute(
+                    r"""
+                    SELECT r.rolname
+                    FROM pg_auth_members m
+                    JOIN pg_roles r ON r.oid = m.roleid
+                    JOIN pg_roles u ON u.oid = m.member
+                    WHERE u.rolname = %s
+                      AND r.rolname NOT LIKE 'pg\_%%'
+                    """,
+                    (username,)
+                )
+                current_roles = [row[0] for row in cursor.fetchall()]
+
+                for old_role in current_roles:
+                    if old_role != assign_role:
+                        cursor.execute(
+                            sql.SQL("REVOKE {} FROM {}").format(
+                                sql.Identifier(old_role), sql.Identifier(username)
+                            )
+                        )
+
+                if assign_role not in current_roles:
+                    cursor.execute(
+                        sql.SQL("GRANT {} TO {}").format(
+                            sql.Identifier(assign_role), sql.Identifier(username)
+                        )
+                    )
+
+                if set_default_role:
+                    cursor.execute(
+                        sql.SQL("ALTER ROLE {} SET ROLE {}").format(
+                            sql.Identifier(username), sql.Identifier(assign_role)
+                        )
+                    )
+
+                changed.append(f'assigned role ({assign_role})')
+
             conn.commit()
 
             return {
@@ -503,7 +567,7 @@ class PostgresService:
 
             return {
                 "status": "error",
-                "message": f'No role named "{data.get("target_username")}" was found.'
+                "message": f'No role named "{data.get("target_username")}" or "{data.get("assign_role")}" was found.'
             }
 
         except Exception as e:
