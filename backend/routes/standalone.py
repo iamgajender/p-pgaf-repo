@@ -1,12 +1,19 @@
 from flask import Blueprint
 from flask import request
 from flask import jsonify
+from pathlib import Path
 
 
 import shutil
 import subprocess
 import json
 import os
+
+from config import ANSIBLE_DIR
+from config import BACKEND_DIR
+from config import SUMMARY_FILE
+
+
 
 from utils.inventory_generator import generate_inventory
 from utils.groupvars_generator import generate_group_vars
@@ -28,15 +35,16 @@ standalone_bp = Blueprint(
 
 #
 # Ansible Configuration
-#
+
 ANSIBLE_PLAYBOOK = "/usr/bin/ansible-playbook"
-ANSIBLE_PROJECT = "/opt/pg_sa/pg_an"
+ANSIBLE_PROJECT = str(ANSIBLE_DIR)
+
 
 SUMMARY_FILE = "/tmp/postgres_summary.json"
 
 # Same path the /api/deployment/log route reads from — must match exactly
 # so what's streamed here is what the UI polls.
-ANSIBLE_LOG = "/opt/pg_sa/backend/logs/ansible.log"
+ANSIBLE_LOG =  BACKEND_DIR / "logs"
 
 
 def run_playbook_live(playbook_name, label):
