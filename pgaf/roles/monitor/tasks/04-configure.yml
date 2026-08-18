@@ -1,0 +1,9 @@
+---
+- name: Enable common configuration directory
+  lineinfile:
+    path: "{{ monitor_pgdata }}/postgresql.conf"
+    regexp: "^#?include_dir"
+    line: "include_dir = '/etc/postgresql/17/common/conf.d'"
+
+  notify:
+    - restart monitor

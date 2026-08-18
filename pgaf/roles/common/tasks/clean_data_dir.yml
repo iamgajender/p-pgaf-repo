@@ -1,0 +1,11 @@
+---
+- name: Stop PostgreSQL
+  service:
+    name: postgresql
+    state: stopped
+  ignore_errors: yes
+
+- name: Remove default cluster
+  file:
+    path: /var/lib/postgresql/17/main
+    state: absent

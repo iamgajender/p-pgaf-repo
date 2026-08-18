@@ -1,0 +1,16 @@
+---
+- name: Create primary node
+  become_user: postgres
+
+  shell: |
+    pg_autoctl create postgres \
+      --pgdata {{ postgres_pgdata }} \
+      --pgctl "{{ pg_ctl_path }}"  \
+      --pgport {{ postgres_port }} \ 
+      --hostname {{ primary_ip }} \
+      --monitor "{{ monitor_uri }}" \
+      --ssl-self-signed \
+      --auth trust 
+
+  args:
+    creates: "{{ postgres_pgdata }}/PG_VERSION"

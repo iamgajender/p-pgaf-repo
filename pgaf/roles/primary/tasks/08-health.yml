@@ -1,0 +1,11 @@
+---
+- name: Verify postgres is listening
+  shell: |
+    ss -lnt | grep 5432
+
+  register: port_status
+
+  changed_when: false
+
+- debug:
+    var: port_status.stdout

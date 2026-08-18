@@ -1,0 +1,58 @@
+---
+###############################################################################
+# Validate pgcheck Service
+###############################################################################
+
+- name: Gather service facts
+  service_facts:
+
+- name: Verify pgcheck service
+  assert:
+    that:
+      - "'pgcheck.service' in ansible_facts.services"
+      - ansible_facts.services['pgcheck.service'].state == "running"
+    fail_msg: "pgcheck service is not running."
+    success_msg: "pgcheck service is running."
+
+###############################################################################
+# Validate Listening Port
+###############################################################################
+
+- name: Verify pgcheck listening port
+  shell: |
+    ss -lnt | grep ":{{ pgcheck_port }}"
+  register: port_check
+  changed_when: false
+
+- name: Validate pgcheck port
+  assert:
+    that:
+      - port_check.rc == 0
+    fail_msg: "pgcheck is not listening on port {{ pgcheck_port }}."
+    success_msg: "pgcheck is listening on port {{ pgcheck_port }}."
+
+###############################################################################
+# Query Health API
+###############################################################################
+
+- name: Query pgcheck API
+  uri:
+    url: "http://127.0.0.1:{{ pgcheck_port }}"
+    status_code:
+      - 200
+      - 503
+  register: api
+  changed_when: false
+
+###############################################################################
+# Display Current Primary
+###############################################################################
+
+- name: Display Current Primary
+  debug:
+    msg:
+      - "-------------------------------------------------------"
+      - "Current Primary : {{ inventory_hostname }}"
+      - "HTTP Status     : {{ api.status }}"
+      - "-------------------------------------------------------"
+  when: api.status == 200

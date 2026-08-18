@@ -1,0 +1,86 @@
+---
+###############################################################################
+# Standby : WAL Receive LSN
+###############################################################################
+
+- name: Get Last WAL Receive LSN
+  become_user: postgres
+  shell: |
+    psql -Atqc "
+    SELECT pg_last_wal_receive_lsn();"
+  register: receive_lsn
+  changed_when: false
+  delegate_to: "{{ standby }}"
+
+- debug:
+    msg: "{{ standby }} Receive LSN : {{ receive_lsn.stdout }}"
+
+###############################################################################
+# Standby : WAL Replay LSN
+###############################################################################
+
+- name: Get Last WAL Replay LSN
+  become_user: postgres
+  shell: |
+    psql -Atqc "
+    SELECT pg_last_wal_replay_lsn();"
+  register: replay_lsn
+  changed_when: false
+  delegate_to: "{{ standby }}"
+
+- debug:
+    msg: "{{ standby }} Replay LSN : {{ replay_lsn.stdout }}"
+
+###############################################################################
+# Recovery Mode
+###############################################################################
+
+- name: Verify Recovery Mode
+  become_user: postgres
+  shell: |
+    psql -Atqc "
+    SELECT pg_is_in_recovery();"
+  register: recovery_mode
+  changed_when: false
+  delegate_to: "{{ standby }}"
+
+- name: Validate Recovery Mode
+  assert:
+    that:
+      - recovery_mode.stdout == "t"
+    fail_msg: "{{ standby }} is not running as a standby."
+    success_msg: "{{ standby }} is running as a standby."
+
+###############################################################################
+# Replay Lag
+###############################################################################
+
+- name: Get Replay Lag
+  become_user: postgres
+  shell: |
+    psql -Atqc "
+    SELECT now() - pg_last_xact_replay_timestamp();"
+  register: replay_lag
+  changed_when: false
+  delegate_to: "{{ standby }}"
+
+- debug:
+    msg: "{{ standby }} Replay Lag : {{ replay_lag.stdout }}"
+
+###############################################################################
+# Validate WAL Activity
+###############################################################################
+
+- name: Validate WAL Receive LSN
+  assert:
+    that:
+      - receive_lsn.stdout != ""
+    fail_msg: "{{ standby }} is not receiving WAL."
+    success_msg: "{{ standby }} is receiving WAL."
+
+- name: Validate WAL Replay LSN
+  assert:
+    that:
+      - replay_lsn.stdout != ""
+    fail_msg: "{{ standby }} is not replaying WAL."
+    success_msg: "{{ standby }} is replaying WAL."

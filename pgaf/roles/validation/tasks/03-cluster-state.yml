@@ -1,0 +1,105 @@
+---
+###############################################################################
+# Validation : Cluster State
+###############################################################################
+
+- name: Get pg_auto_failover cluster state
+  become_user: postgres
+  shell: |
+    pg_autoctl show state \
+      --pgdata {{ monitor_pgdata }}
+  register: cluster_state
+  changed_when: false
+
+###############################################################################
+# Display Cluster State
+###############################################################################
+
+- name: Display cluster state
+  debug:
+    var: cluster_state.stdout_lines
+
+
+###############################################################################
+# Verify no node is UNKNOWN
+###############################################################################
+
+- name: Verify no UNKNOWN nodes exist
+  assert:
+    that:
+      - "'unknown' not in cluster_state.stdout | lower"
+    fail_msg: "One or more nodes are in UNKNOWN state."
+    success_msg: "No UNKNOWN nodes detected."
+
+###############################################################################
+# Verify no node is DEMOTED
+###############################################################################
+
+- name: Verify no DEMOTED nodes exist
+  assert:
+    that:
+      - "'demoted' not in cluster_state.stdout | lower"
+    fail_msg: "One or more nodes are DEMOTED."
+    success_msg: "No DEMOTED nodes detected."
+
+###############################################################################
+# Verify no node is CATCHINGUP
+###############################################################################
+
+- name: Verify no node is unexpectedly CATCHINGUP
+  assert:
+    that:
+      - "'catchingup' not in cluster_state.stdout | lower"
+    fail_msg: "One or more nodes are still CATCHINGUP."
+    success_msg: "No node is CATCHINGUP."
+
+###############################################################################
+# Verify no node is WAIT_PRIMARY
+###############################################################################
+
+- name: Verify no node is WAIT_PRIMARY
+  assert:
+    that:
+      - "'wait_primary' not in cluster_state.stdout | lower"
+    fail_msg: "A node is waiting for a primary."
+    success_msg: "No node is waiting for a primary."
+
+###############################################################################
+# Verify no node is REPORT_LSN
+###############################################################################
+
+- name: Verify no node is REPORT_LSN
+  assert:
+    that:
+      - "'report_lsn' not in cluster_state.stdout | lower"
+    fail_msg: "A node is stuck in REPORT_LSN."
+    success_msg: "No REPORT_LSN state detected."
+
+###############################################################################
+# Verify no node is JOINING
+###############################################################################
+
+- name: Verify no node is JOINING
+  assert:
+    that:
+      - "'joining' not in cluster_state.stdout | lower"
+    fail_msg: "A node is still JOINING."
+    success_msg: "No JOINING nodes detected."
+
+###############################################################################
+# Cluster Summary
+###############################################################################
+
+- name: Cluster baseline validation completed
+  debug:
+    msg:
+      - "=========================================="
+      - " Cluster Baseline Validation : PASSED"
+      - " UNKNOWN State            : NONE"
+      - " DEMOTED State            : NONE"
+      - " CATCHINGUP State         : NONE"
+      - " WAIT_PRIMARY State       : NONE"
+      - " REPORT_LSN State         : NONE"
+      - " JOINING State            : NONE"
+      - " Cluster Membership       : OK"
+      - "=========================================="

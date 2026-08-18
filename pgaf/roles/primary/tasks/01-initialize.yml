@@ -1,0 +1,8 @@
+---
+- name: Create primary data directory
+  file:
+    path: "{{ postgres_pgdata }}"
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: "0700"

@@ -1,0 +1,6 @@
+---
+- name: Start standby service
+  systemd:
+    name: "{{ postgres_service_name }}"
+    state: started
+    enabled: yes

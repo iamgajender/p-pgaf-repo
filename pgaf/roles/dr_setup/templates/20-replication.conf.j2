@@ -1,0 +1,15 @@
+wal_level = replica
+
+max_wal_senders = {{ max_wal_senders }}
+
+max_replication_slots = {{ max_replication_slots }}
+
+wal_keep_size = '{{ wal_keep_size }}'
+
+wal_log_hints = on
+
+hot_standby = on
+
+hot_standby_feedback = on
+
+wal_sender_timeout = '30s'

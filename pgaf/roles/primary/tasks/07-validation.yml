@@ -1,0 +1,12 @@
+---
+- name: Verify primary state
+  become_user: postgres
+
+  shell: |
+    pg_autoctl show state \
+      --pgdata {{ postgres_pgdata }}
+
+  register: primary_state
+
+- debug:
+    var: primary_state.stdout

@@ -1,0 +1,13 @@
+---
+- import_tasks: 01-precheck.yml
+
+- import_tasks: 02-monitor-health.yml
+
+- import_tasks: 03-cluster-state.yml
+
+- import_tasks: 04-primary-health.yml
+
+
+- import_tasks: 05-standby-health.yml
+
+- import_tasks: 06-replication-check.yml

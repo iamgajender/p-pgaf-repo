@@ -1,0 +1,207 @@
+#!/usr/bin/env python3
+
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import subprocess
+import json
+import socket
+
+###############################################################################
+# Variables from Ansible
+###############################################################################
+
+PG_AUTOCTL = "{{ pg_autoctl_path }}"
+
+PSQL = "{{ postgresql_bin_dir }}/psql"
+
+PGDATA = "{{ postgres_pgdata }}"
+
+NODE_IP = "{{ inventory_hostname }}"
+
+PORT = {{ pgcheck_port }}
+
+PG_ENV = {
+    "PGDATA": PGDATA,
+    "HOME": "/var/lib/postgresql",
+    "USER": "postgres",
+    "LOGNAME": "postgres",
+    "PATH": "{{ postgresql_bin_dir }}:/usr/bin:/bin"
+}
+
+###############################################################################
+
+class Handler(BaseHTTPRequestHandler):
+
+    def run_cmd(self, cmd, env=None):
+
+        try:
+            return subprocess.check_output(
+                cmd,
+                stderr=subprocess.DEVNULL,
+                env=env,
+                timeout=3
+            ).decode().strip()
+
+        except Exception as e:
+
+            print(f"CMD ERROR: {cmd} -> {e}", flush=True)
+
+            return ""
+
+    ###########################################################################
+
+    def do_GET(self):
+
+        try:
+
+            ###################################################################
+            # STEP 1 : Local PostgreSQL Role
+            ###################################################################
+
+            local_role = self.run_cmd([
+                PSQL,
+                "-U", "postgres",
+                "-h", NODE_IP,
+                "-t",
+                "-c",
+                "SELECT pg_is_in_recovery();"
+            ]).strip()
+
+            ###################################################################
+            # STEP 2 : Local Server IP
+            ###################################################################
+
+            local_ip = self.run_cmd([
+                PSQL,
+                "-U", "postgres",
+                "-h", NODE_IP,
+                "-t",
+                "-c",
+                "SELECT inet_server_addr();"
+            ]).strip()
+
+            ###################################################################
+            # STEP 3 : Read Cluster State from Monitor
+            ###################################################################
+
+            monitor_primary = ""
+
+            output = self.run_cmd([
+                PG_AUTOCTL,
+                "-q",
+                "show",
+                "state",
+                "--pgdata",
+                PGDATA,
+                "--json"
+            ], env=PG_ENV)
+
+            if output:
+
+                try:
+
+                    data = json.loads(output)
+
+                    for node in data:
+
+                        if (
+                            node.get("current_group_state") == "primary"
+                            and node.get("assigned_group_state") == "primary"
+                            and node.get("health") == 1
+                        ):
+
+                            monitor_primary = node.get("nodehost", "")
+
+                            break
+
+                except Exception as e:
+
+                    print("JSON ERROR:", e, flush=True)
+
+            ###################################################################
+            # STEP 4 : Resolve Hostname
+            ###################################################################
+
+            monitor_ip = ""
+
+            if monitor_primary:
+
+                try:
+
+                    socket.inet_aton(monitor_primary)
+
+                    monitor_ip = monitor_primary
+
+                except:
+
+                    try:
+
+                        resolved = socket.gethostbyname_ex(monitor_primary)
+
+                        if resolved[2]:
+
+                            monitor_ip = resolved[2][0]
+
+                    except Exception as e:
+
+                        print("DNS ERROR:", e, flush=True)
+
+            ###################################################################
+            # DEBUG
+            ###################################################################
+
+            print(
+                f"ROLE={local_role} "
+                f"LOCAL={local_ip} "
+                f"PRIMARY={monitor_primary} "
+                f"PRIMARY_IP={monitor_ip}",
+                flush=True
+            )
+
+            ###################################################################
+            # STEP 5 : Decision
+            ###################################################################
+
+            #
+            # DR mode
+            #
+
+            if not monitor_ip:
+
+                if local_role == "f":
+
+                    self.send_response(200)
+
+                else:
+
+                    self.send_response(503)
+
+            #
+            # Normal mode
+            #
+
+            else:
+
+                if local_role == "f" and local_ip == monitor_ip:
+
+                    self.send_response(200)
+
+                else:
+
+                    self.send_response(503)
+
+        except Exception as e:
+
+            print("FATAL ERROR:", e, flush=True)
+
+            self.send_response(503)
+
+        self.send_header("Content-Type", "text/plain")
+
+        self.end_headers()
+
+###############################################################################
+
+HTTPServer(
+    ("0.0.0.0", PORT),
+    Handler
+).serve_forever()

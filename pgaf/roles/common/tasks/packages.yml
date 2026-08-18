@@ -1,0 +1,9 @@
+---
+- name: Install PostgreSQL
+  apt:
+    name:
+      - postgresql-17
+      - postgresql-client-17
+      - postgresql-17-auto-failover
+    state: present
+    update_cache: yes

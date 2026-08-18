@@ -1,0 +1,16 @@
+---
+- import_tasks: 01-initialize.yml
+
+- import_tasks: 02-create.yml
+
+- import_tasks: 03-configure.yml
+
+- import_tasks: 04-pghba.yml
+
+- import_tasks: 05-systemd.yml
+
+- import_tasks: 06-service.yml
+
+- import_tasks: 07-validation.yml
+
+- import_tasks: 08-health.yml

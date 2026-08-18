@@ -1,0 +1,21 @@
+---
+###############################################################################
+# PgBouncer Validation Summary
+###############################################################################
+
+- name: Display PgBouncer Validation Summary
+  debug:
+    msg:
+      - "========================================================="
+      - "              PgBouncer Validation Summary               "
+      - "========================================================="
+      - "Service           : {{ ansible_facts.services['pgbouncer.service'].state | capitalize }}"
+      - "Listening Port    : {{ pgbouncer_port }}"
+      - "HAProxy           : Reachable"
+      - "Primary IP        : {{ primary_ip.stdout }}"
+      - "Pooling           : Healthy"
+      - "Databases         : OK"
+      - "Servers           : OK"
+      - "Clients           : OK"
+      - "Routing           : Verified"
+      - "========================================================="

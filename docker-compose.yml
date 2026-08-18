@@ -1,0 +1,65 @@
+version: "3.9"
+
+services:
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+
+    image: pg-sa-backend:latest
+
+    container_name: pg-sa-backend
+
+    restart: unless-stopped
+
+    ports:
+      - "5000:5000"
+
+    volumes:
+      - backend_logs:/app/backend/logs
+      - backend_output:/app/backend/output
+
+    environment:
+      - PYTHONUNBUFFERED=1
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+    networks:
+      - pg-sa-network
+
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+
+    image: pg-sa-frontend:latest
+
+    container_name: pg-sa-frontend
+
+    restart: unless-stopped
+
+    ports:
+      - "80:80"
+
+    depends_on:
+      - backend
+
+    networks:
+      - pg-sa-network
+
+
+networks:
+  pg-sa-network:
+    driver: bridge
+
+
+volumes:
+  backend_logs:
+  backend_output:

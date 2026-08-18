@@ -1,0 +1,153 @@
+---
+###############################################################################
+# Add PGDG Repository
+###############################################################################
+
+- name: Create PGDG key directory
+  file:
+    path: /usr/share/postgresql-common/pgdg
+    state: directory
+    mode: "0755"
+
+- name: Download PGDG signing key
+  get_url:
+    url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+    dest: /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+    mode: "0644"
+
+- name: Configure PGDG repository
+  copy:
+    dest: /etc/apt/sources.list.d/pgdg.list
+    mode: "0644"
+    content: "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] http://apt.postgresql.org/pub/repos/apt {{ ansible_distribution_release }}-pgdg main\n" 
+
+###############################################################################
+# Update Package Cache
+###############################################################################
+
+- name: Update apt package cache
+  apt:
+    update_cache: yes
+
+###############################################################################
+# Install PostgreSQL
+###############################################################################
+
+- name: Install PostgreSQL packages
+  apt:
+    name:
+      - "postgresql-{{ postgres_version }}"
+      - "postgresql-client-{{ postgres_version }}"
+    state: present
+
+###############################################################################
+# Stop PostgreSQL
+###############################################################################
+
+- name: Stop PostgreSQL service
+  service:
+    name: "{{ postgres_service }}"
+    state: stopped
+  ignore_errors: true
+
+###############################################################################
+# Remove Default Cluster
+###############################################################################
+
+- name: Remove default PostgreSQL cluster
+  file:
+    path: "/var/lib/postgresql/{{ postgres_version }}/main"
+    state: absent
+
+###############################################################################
+# Create DR PGDATA
+###############################################################################
+
+- name: Create DR data directory
+  file:
+    path: "{{ dr_pgdata }}"
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: "0700"
+
+###############################################################################
+# Verify PostgreSQL Binary
+###############################################################################
+
+- name: Verify postgres binary
+  stat:
+    path: "{{ postgresql_bin_dir }}/postgres"
+  register: postgres_binary
+
+- name: Validate postgres binary
+  assert:
+    that:
+      - postgres_binary.stat.exists
+    fail_msg: "postgres binary not found."
+    success_msg: "postgres binary verified."
+
+###############################################################################
+# Verify pg_basebackup Binary
+###############################################################################
+
+- name: Verify pg_basebackup binary
+  stat:
+    path: "{{ postgresql_bin_dir }}/pg_basebackup"
+  register: basebackup_binary
+
+- name: Validate pg_basebackup binary
+  assert:
+    that:
+      - basebackup_binary.stat.exists
+    fail_msg: "pg_basebackup binary not found."
+    success_msg: "pg_basebackup binary verified."
+
+###############################################################################
+# Verify psql Binary
+###############################################################################
+
+- name: Verify psql binary
+  stat:
+    path: "{{ postgresql_bin_dir }}/psql"
+  register: psql_binary
+
+- name: Validate psql binary
+  assert:
+    that:
+      - psql_binary.stat.exists
+    fail_msg: "psql binary not found."
+    success_msg: "psql binary verified."
+
+###############################################################################
+# Verify PGDATA
+###############################################################################
+
+- name: Verify DR PGDATA
+  stat:
+    path: "{{ dr_pgdata }}"
+  register: dr_pgdata_stat
+
+- name: Validate DR PGDATA
+  assert:
+    that:
+      - dr_pgdata_stat.stat.exists
+      - dr_pgdata_stat.stat.isdir
+      - dr_pgdata_stat.stat.pw_name == "postgres"
+      - dr_pgdata_stat.stat.gr_name == "postgres"
+    fail_msg: "DR PGDATA directory validation failed."
+    success_msg: "DR PGDATA directory verified."
+
+###############################################################################
+# Display Installed Versions
+###############################################################################
+
+- name: Get PostgreSQL version
+  command: "{{ postgresql_bin_dir }}/postgres --version"
+  register: postgres_version_output
+  changed_when: false
+
+- name: Display PostgreSQL version
+  debug:
+    msg:
+      - "{{ postgres_version_output.stdout }}"

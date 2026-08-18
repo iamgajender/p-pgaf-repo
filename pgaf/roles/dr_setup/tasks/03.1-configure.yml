@@ -1,0 +1,29 @@
+---
+- name: Create common configuration directory
+  file:
+    path: /etc/postgresql/17/common/conf.d
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: "0755"
+
+- name: Deploy common PostgreSQL configuration
+  template:
+    src: "{{ item.src }}"
+    dest: "/etc/postgresql/17/common/conf.d/{{ item.dest }}"
+    owner: postgres
+    group: postgres
+    mode: "0644"
+
+  loop:
+    - src: "10-network.conf.j2"
+      dest: "10-network.conf"
+
+    - src: "20-replication.conf.j2"
+      dest: "20-replication.conf"
+
+    - src: "30-memory.conf.j2"
+      dest: "30-memory.conf"
+
+    - src: "40-logging.conf.j2"
+      dest: "40-logging.conf"

@@ -1,0 +1,16 @@
+---
+validation_table: pgaf_validation
+
+validation_database: postgres
+
+validation_user: postgres
+
+failover_wait: 60
+
+switchover_wait: 60
+
+monitor_pgdata: /var/lib/postgresql/17/monitor
+
+postgres_pgdata: /var/lib/postgresql/17/data
+
+

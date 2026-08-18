@@ -1,0 +1,118 @@
+---
+###############################################################################
+# Standby Validation
+###############################################################################
+
+- name: Show standby being validated
+  debug:
+    msg: "Validating Standby : {{ standby }}"
+
+###############################################################################
+# Service
+###############################################################################
+
+- name: Gather service facts
+  service_facts:
+  delegate_to: "{{ standby }}"
+
+- name: Verify pg_auto_failover service
+  assert:
+    that:
+      - "'pgautofailover.service' in ansible_facts.services"
+      - ansible_facts.services['pgautofailover.service'].state == "running"
+    fail_msg: "pg_auto_failover service is NOT running on {{ standby }}"
+    success_msg: "pg_auto_failover service is running on {{ standby }}"
+
+###############################################################################
+# PostgreSQL
+###############################################################################
+
+- name: Verify PostgreSQL accepts connections
+  become_user: postgres
+  shell: |
+    psql -Atqc "SELECT 1;"
+  register: postgres_connection
+  changed_when: false
+  delegate_to: "{{ standby }}"
+
+- name: Validate PostgreSQL connection
+  assert:
+    that:
+      - postgres_connection.rc == 0
+      - postgres_connection.stdout == "1"
+    fail_msg: "PostgreSQL is not accepting connections on {{ standby }}"
+    success_msg: "PostgreSQL is accepting connections on {{ standby }}"
+
+###############################################################################
+# Recovery Mode
+###############################################################################
+
+- name: Verify Recovery Mode
+  become_user: postgres
+  shell: |
+    psql -Atqc "SELECT pg_is_in_recovery();"
+  register: recovery
+  changed_when: false
+  delegate_to: "{{ standby }}"
+
+- name: Validate Recovery Mode
+  assert:
+    that:
+      - recovery.stdout == "t"
+    fail_msg: "{{ standby }} is NOT a standby."
+    success_msg: "{{ standby }} is running as a standby."
+
+###############################################################################
+# WAL Receiver
+###############################################################################
+
+- name: Verify WAL Receiver
+  become_user: postgres
+  shell: |
+    psql -Atqc "
+    SELECT status
+    FROM pg_stat_wal_receiver;"
+  register: wal_receiver
+  changed_when: false
+  delegate_to: "{{ standby }}"
+
+- name: Validate WAL Receiver
+  assert:
+    that:
+      - wal_receiver.stdout == "streaming"
+    fail_msg: "WAL Receiver is not streaming on {{ standby }}"
+    success_msg: "WAL Receiver is streaming on {{ standby }}"
+
+###############################################################################
+# Replay Lag
+###############################################################################
+
+- name: Get Replay Lag
+  become_user: postgres
+  shell: |
+    psql -Atqc "
+    SELECT now() - pg_last_xact_replay_timestamp();"
+  register: replay_lag
+  changed_when: false
+  delegate_to: "{{ standby }}"
+
+- name: Display Replay Lag
+  debug:
+    msg: "Replay Lag on {{ standby }} : {{ replay_lag.stdout }}"
+
+###############################################################################
+# Replay LSN
+###############################################################################
+
+- name: Get Replay LSN
+  become_user: postgres
+  shell: |
+    psql -Atqc "
+    SELECT pg_last_wal_replay_lsn();"
+  register: replay_lsn
+  changed_when: false
+  delegate_to: "{{ standby }}"
+
+- name: Display Replay LSN
+  debug:
+    msg: "Replay LSN on {{ standby }} : {{ replay_lsn.stdout }}"

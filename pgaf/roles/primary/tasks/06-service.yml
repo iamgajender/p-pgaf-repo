@@ -1,0 +1,6 @@
+---
+- name: Start primary service
+  service:
+    name: "{{ postgres_service_name }}"
+    state: started
+    enabled: yes

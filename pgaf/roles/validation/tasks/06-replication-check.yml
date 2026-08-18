@@ -1,0 +1,42 @@
+---
+###############################################################################
+# Validation : Replication Health
+###############################################################################
+
+###############################################################################
+# Verify Replication on Primary
+###############################################################################
+
+- name: Get replication status from Primary
+  become_user: postgres
+  shell: |
+    psql -Atqc "
+    SELECT application_name,
+           client_addr,
+           state,
+           sync_state
+    FROM pg_stat_replication;"
+  register: replication_status
+  changed_when: false
+  delegate_to: "{{ groups['primary'][0] }}"
+
+- name: Display replication status
+  debug:
+    var: replication_status.stdout_lines
+
+- name: Validate streaming replication exists
+  assert:
+    that:
+      - replication_status.stdout is search('streaming')
+    fail_msg: "Streaming replication is not active."
+    success_msg: "Streaming replication is active."
+
+###############################################################################
+# Verify Standby Replication
+###############################################################################
+
+- name: Verify each Standby
+  include_tasks: 06-standby-replication.yml
+  loop: "{{ groups['standby'] }}"
+  loop_control:
+    loop_var: standby

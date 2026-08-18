@@ -1,0 +1,142 @@
+---
+###############################################################################
+# Validation : Monitor Health
+###############################################################################
+
+- name: Verify pg_auto_failover service is running
+  service_facts:
+
+- name: Validate pg_auto_failover service
+  assert:
+    that:
+      - "'pgautofailover.service' in ansible_facts.services"
+      - ansible_facts.services['pgautofailover.service'].state == "running"
+    fail_msg: "pg_auto_failover service is not running."
+    success_msg: "pg_auto_failover service is running."
+
+###############################################################################
+# PostgreSQL Process
+###############################################################################
+
+- name: Verify PostgreSQL monitor process
+  become_user: postgres
+  shell: |
+    pgrep -fa "postgres.*{{ monitor_pgdata }}"
+  register: postgres_process
+  changed_when: false
+
+- name: Validate PostgreSQL monitor process
+  assert:
+    that:
+      - postgres_process.rc == 0
+    fail_msg: "Monitor PostgreSQL process is not running."
+    success_msg: "Monitor PostgreSQL process is running."
+
+###############################################################################
+# Database Connectivity
+###############################################################################
+
+- name: Verify monitor database connection
+  become_user: postgres
+  shell: |
+    psql \
+      -d pg_auto_failover \
+      -c "SELECT 1;"
+  register: monitor_connection
+  changed_when: false
+
+- name: Validate monitor database connection
+  assert:
+    that:
+      - monitor_connection.rc == 0
+    fail_msg: "Unable to connect to monitor database."
+    success_msg: "Monitor database is accepting connections."
+
+###############################################################################
+# Monitor URI
+###############################################################################
+
+- name: Verify monitor URI
+  become_user: postgres
+  shell: |
+    pg_autoctl show uri \
+      --pgdata {{ monitor_pgdata }}
+  register: monitor_uri
+  changed_when: false
+
+- name: Validate monitor URI
+  assert:
+    that:
+      - monitor_uri.rc == 0
+    fail_msg: "Unable to retrieve monitor URI."
+    success_msg: "Monitor URI retrieved successfully."
+
+###############################################################################
+# Formation
+###############################################################################
+
+- name: Verify monitor formation
+  become_user: postgres
+  shell: |
+    pg_autoctl show state \
+      --pgdata {{ monitor_pgdata }}
+  register: monitor_state
+  changed_when: false
+
+- name: Validate formation exists
+  assert:
+    that:
+      - monitor_state.rc == 0
+      - monitor_state.stdout | length > 0
+    fail_msg: "Formation information not found."
+    success_msg: "Formation exists."
+
+###############################################################################
+# PostgreSQL Port
+###############################################################################
+
+- name: Verify monitor PostgreSQL port
+  wait_for:
+    host: "{{ monitor_ip }}"
+    port: "{{ postgres_port }}"
+    timeout: 5
+    state: started
+
+###############################################################################
+# Recent FATAL Errors
+###############################################################################
+
+- name: Check recent PostgreSQL FATAL errors
+  shell: |
+    journalctl \
+      -u pgautofailover.service \
+      --since "10 minutes ago" \
+      --no-pager | grep -i "FATAL"
+  register: fatal_errors
+  changed_when: false
+  failed_when: false
+
+- name: Validate journal contains no FATAL errors
+  assert:
+    that:
+      - fatal_errors.stdout == ""
+    fail_msg: "Recent FATAL errors found in pg_auto_failover logs."
+    success_msg: "No recent FATAL errors detected."
+
+###############################################################################
+# Summary
+###############################################################################
+
+- name: Monitor health validation completed
+  debug:
+    msg:
+      - "=========================================="
+      - " Monitor Health Validation : PASSED"
+      - " Service             : OK"
+      - " PostgreSQL Process  : OK"
+      - " Database Connection : OK"
+      - " Monitor URI         : OK"
+      - " Formation           : OK"
+      - " TCP Port            : OK"
+      - " Logs                : OK"
+      - "=========================================="

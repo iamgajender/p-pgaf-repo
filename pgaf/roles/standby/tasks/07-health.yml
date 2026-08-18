@@ -1,0 +1,19 @@
+---
+- name: Wait for PostgreSQL
+  wait_for:
+    port: "{{ postgres_port }}"
+    timeout: 60
+
+- name: Verify postgres accepts connections
+  become_user: postgres
+
+  shell: |
+    psql -Atqc "select pg_is_in_recovery();"
+
+  register: recovery_status
+
+  changed_when: false
+
+- name: Display recovery status
+  debug:
+    var: recovery_status.stdout

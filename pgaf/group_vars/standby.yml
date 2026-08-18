@@ -1,0 +1,3 @@
+postgres_pgdata: "/var/lib/postgresql/{{ postgres_version }}/data"
+
+node_role: standby

@@ -1,0 +1,30 @@
+---
+- name: Wait for PGDATA to be initialized
+  wait_for:
+    path: "{{ postgres_pgdata }}/PG_VERSION"
+    state: present
+    timeout: 120
+
+- name: Wait for pg_autoctl configuration
+  wait_for:
+    path: "/var/lib/postgresql/.config/pg_autoctl{{ postgres_pgdata }}/pg_autoctl.cfg"
+    state: present
+    timeout: 120
+
+- name: Wait until PostgreSQL starts accepting connections
+  wait_for:
+    host: "127.0.0.1"
+    port: "{{ postgres_port }}"
+    state: started
+    delay: 5
+    timeout: 180
+
+- name: Wait until pg_autoctl reaches a stable state
+  become_user: postgres
+  shell: |
+    pg_autoctl show state --pgdata {{ postgres_pgdata }}
+  register: standby_state
+  retries: 30
+  delay: 5
+  until: standby_state.rc == 0
+  changed_when: false

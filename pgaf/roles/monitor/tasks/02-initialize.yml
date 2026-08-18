@@ -1,0 +1,8 @@
+---
+- name: Create monitor directory
+  file:
+    path: "{{ monitor_pgdata }}"
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: '0700'

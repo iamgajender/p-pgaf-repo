@@ -1,0 +1,11 @@
+---
+- name: restart monitor
+  service:
+    name: pgautofailover
+    state: restarted
+
+- name: reload monitor
+  become_user: postgres
+  shell: |
+    {{ postgresql_bin_dir }}/pg_ctl reload \
+    -D {{ monitor_pgdata }}

@@ -1,0 +1,6 @@
+---
+- name: Start monitor service
+  service:
+    name: pgautofailover
+    state: started
+    enabled: yes

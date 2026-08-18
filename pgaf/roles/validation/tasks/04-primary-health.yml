@@ -1,0 +1,104 @@
+---
+###############################################################################
+# Validation : Primary Health
+###############################################################################
+
+- name: Gather service facts from Primary
+  service_facts:
+  delegate_to: "{{ primary_ip }}"
+
+###############################################################################
+# pg_auto_failover Service
+###############################################################################
+
+- name: Verify pg_auto_failover service is running
+  assert:
+    that:
+      - "'pgautofailover.service' in ansible_facts.services"
+      - ansible_facts.services['pgautofailover.service'].state == "running"
+    fail_msg: "pg_auto_failover service is not running on the Primary."
+    success_msg: "pg_auto_failover service is running."
+  delegate_to: "{{ primary_ip }}"
+
+###############################################################################
+# PostgreSQL Connection
+###############################################################################
+
+- name: Verify PostgreSQL accepts connections
+  become_user: postgres
+  shell: |
+    psql -Atqc "SELECT 1;"
+  register: postgres_connection
+  changed_when: false
+  delegate_to: "{{ primary_ip }}"
+
+- name: Validate PostgreSQL connection
+  assert:
+    that:
+      - postgres_connection.rc == 0
+      - postgres_connection.stdout == "1"
+    fail_msg: "Primary database is not accepting connections."
+    success_msg: "Primary database is accepting connections."
+
+###############################################################################
+# Primary State
+###############################################################################
+
+- name: Get Primary state
+  become_user: postgres
+  shell: |
+    pg_autoctl show state \
+      --pgdata {{ postgres_pgdata }}
+  register: primary_state
+  changed_when: false
+  delegate_to: "{{ primary_ip }}"
+
+- name: Validate Primary role
+  assert:
+    that:
+      - "'primary' in primary_state.stdout | lower"
+    fail_msg: "This node is not acting as Primary."
+    success_msg: "Primary role verified."
+
+###############################################################################
+# Replication Status
+###############################################################################
+
+- name: Get replication status
+  become_user: postgres
+  shell: |
+    psql -Atqc "
+    SELECT application_name,
+           state
+    FROM pg_stat_replication;"
+  register: replication_status
+  changed_when: false
+  delegate_to: "{{ primary_ip }}"
+
+- name: Show replication status
+  debug:
+    var: replication_status.stdout_lines
+
+###############################################################################
+# Streaming Verification
+###############################################################################
+
+- name: Validate replication is streaming
+  assert:
+    that:
+      - replication_status.stdout is search('streaming')
+    fail_msg: "Replication is not streaming."
+    success_msg: "Streaming replication verified."
+
+###############################################################################
+# Connected Standbys
+###############################################################################
+
+- name: Count connected standbys
+  become_user: postgres
+  shell: |
+    psql -Atqc "SELECT count(*) FROM pg_stat_replication;"
+  register: standby_count
+  changed_when: false
+  delegate_to: "{{ primary_ip }}"
+

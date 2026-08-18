@@ -1,0 +1,8 @@
+---
+- import_tasks: repo.yml
+
+- import_tasks: packages.yml
+
+- import_tasks: configure.yml
+
+- import_tasks: clean_data_dir.yml
