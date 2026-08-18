@@ -1,0 +1,89 @@
+---
+###############################################################################
+# Update Package Cache
+###############################################################################
+
+- name: Update apt package cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+###############################################################################
+# Install PgBouncer
+###############################################################################
+
+- name: Install PgBouncer package
+  apt:
+    name: pgbouncer
+    state: present
+
+###############################################################################
+# Install PostgreSQL Client
+###############################################################################
+
+- name: Install PostgreSQL client
+  apt:
+    name: "postgresql-client-{{ postgres_version }}"
+    state: present
+
+###############################################################################
+# Verify PgBouncer Binary
+###############################################################################
+
+- name: Check PgBouncer binary
+  stat:
+    path: /usr/sbin/pgbouncer
+  register: pgbouncer_binary
+
+- name: Validate PgBouncer installation
+  assert:
+    that:
+      - pgbouncer_binary.stat.exists
+    fail_msg: "PgBouncer installation failed."
+    success_msg: "PgBouncer installed successfully."
+
+###############################################################################
+# Verify PostgreSQL Client
+###############################################################################
+
+- name: Check PostgreSQL client binary
+  stat:
+    path: "{{ postgresql_bin_dir }}/psql"
+  register: psql_binary
+
+- name: Validate PostgreSQL client installation
+  assert:
+    that:
+      - psql_binary.stat.exists
+    fail_msg: "PostgreSQL client installation failed."
+    success_msg: "PostgreSQL client installed successfully."
+
+###############################################################################
+# Display PgBouncer Version
+###############################################################################
+
+- name: Get PgBouncer version
+  command: pgbouncer -V
+  register: pgbouncer_version
+  changed_when: false
+
+- name: Display PgBouncer version
+  debug:
+    msg:
+      - "PgBouncer Version"
+      - "{{ pgbouncer_version.stdout }}"
+
+###############################################################################
+# Display PostgreSQL Client Version
+###############################################################################
+
+- name: Get PostgreSQL client version
+  command: "{{ postgresql_bin_dir }}/psql --version"
+  register: psql_version
+  changed_when: false
+
+- name: Display PostgreSQL client version
+  debug:
+    msg:
+      - "PostgreSQL Client Version"
+      - "{{ psql_version.stdout }}"

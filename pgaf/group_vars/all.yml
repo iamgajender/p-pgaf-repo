@@ -1,0 +1,112 @@
+---
+
+postgresql_bin_dir: "/usr/lib/postgresql/{{ postgres_version }}/bin"
+
+pg_ctl_path: "/usr/lib/postgresql/{{ postgres_version }}/bin/pg_ctl"
+
+psql_path: "/usr/lib/postgresql/{{ postgres_version }}/bin/psql"
+
+monitor_pgdata: "/var/lib/postgresql/{{ postgres_version }}/monitor"
+
+postgres_pgdata: "/var/lib/postgresql/{{ postgres_version }}/data"
+
+
+# group_vars/all.yml
+
+monitor_ip: "{{ groups['monitor'][0] }}"
+primary_ip: "{{ groups['primary'][0] }}"
+standby1_ip: "{{ groups['standby'][0] }}"
+standby2_ip: "{{ groups['standby'][1] }}"
+pgbouncer_ip: "{{ groups['pgbouncer'][0] if (groups['pgbouncer'] | default([]) | length > 0) else '' }}"
+
+
+
+###############################################
+# PostgreSQL Version
+###############################################
+
+postgres_version: 17
+
+postgres_port: 5432
+
+listen_addr: "*"
+
+###############################################
+# WAL / Replication
+###############################################
+
+wal_level: replica
+
+max_wal_senders: 12
+
+max_replication_slots: 12
+
+wal_keep_size: "8GB"
+
+wal_sender_timeout: "30s"
+
+wal_log_hints: "on"
+
+hot_standby: "on"
+
+hot_standby_feedback: "on"
+
+###############################################
+# Memory
+###############################################
+
+shared_buffers: "512MB"
+
+work_mem: "16MB"
+
+maintenance_work_mem: "256MB"
+
+effective_cache_size: "2GB"
+
+###############################################
+# Autovacuum
+###############################################
+
+autovacuum_max_workers: 3
+
+autovacuum_vacuum_scale_factor: 0.08
+
+autovacuum_analyze_scale_factor: 0.02
+
+###############################################
+# Logging
+###############################################
+
+logging_collector: "on"
+
+log_destination: "stderr"
+
+log_directory: "log"
+
+log_min_messages: "info"
+
+log_connections: "off"
+
+log_disconnections: "off"
+
+log_lock_waits: "on"
+
+###############################################
+# SSL
+###############################################
+
+ssl: "on"
+
+ssl_cert_file: "/var/lib/postgresql/{{ postgres_version }}/data/server.crt"
+
+ssl_key_file: "/var/lib/postgresql/{{ postgres_version }}/data/server.key"
+
+ssl_ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384"
+
+###############################################
+# Shared Preload Libraries
+###############################################
+
+shared_preload_libraries: "pg_stat_statements"
+
+track_functions: "pl"

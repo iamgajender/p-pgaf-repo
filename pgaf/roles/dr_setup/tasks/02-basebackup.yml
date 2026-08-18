@@ -1,0 +1,111 @@
+---
+###############################################################################
+# Verify Empty PGDATA
+###############################################################################
+
+- name: Check DR PGDATA contents
+  find:
+    paths: "{{ dr_pgdata }}"
+    file_type: any
+    hidden: yes
+  register: pgdata_contents
+
+- name: Validate empty PGDATA
+  assert:
+    that:
+      - pgdata_contents.matched == 0
+    fail_msg: "PGDATA is not empty. Remove existing data before running pg_basebackup."
+    success_msg: "PGDATA is empty."
+
+###############################################################################
+# Verify HAProxy Reachability
+###############################################################################
+
+- name: Wait for HAProxy PostgreSQL port
+  wait_for:
+    host: "{{ haproxy_host }}"
+    port: "{{ haproxy_port }}"
+    timeout: 60
+
+###############################################################################
+# Run Base Backup
+###############################################################################
+
+- name: Run pg_basebackup
+  become_user: postgres
+  command:
+    argv:
+      - "{{ postgresql_bin_dir }}/pg_basebackup"
+      - "-h"
+      - "{{ haproxy_host }}"
+      - "-p"
+      - "{{ haproxy_port }}"
+      - "-U"
+      - "{{ replication_user }}"
+      - "-D"
+      - "{{ dr_pgdata }}"
+      - "-R"
+      - "-X"
+      - "stream"
+      - "-C"
+      - "-S"
+      - "{{ replication_slot }}"
+      - "-v"
+  register: basebackup
+  changed_when: true
+
+###############################################################################
+# Verify PG_VERSION
+###############################################################################
+
+- name: Verify PG_VERSION
+  stat:
+    path: "{{ dr_pgdata }}/PG_VERSION"
+  register: pg_version
+
+- name: Validate PG_VERSION
+  assert:
+    that:
+      - pg_version.stat.exists
+    fail_msg: "Base backup failed. PG_VERSION not found."
+    success_msg: "Base backup completed successfully."
+
+###############################################################################
+# Verify standby.signal
+###############################################################################
+
+- name: Verify standby.signal
+  stat:
+    path: "{{ dr_pgdata }}/standby.signal"
+  register: standby_signal
+
+- name: Validate standby.signal
+  assert:
+    that:
+      - standby_signal.stat.exists
+    fail_msg: "standby.signal was not created."
+    success_msg: "standby.signal created."
+
+###############################################################################
+# Verify postgresql.auto.conf
+###############################################################################
+
+- name: Verify postgresql.auto.conf
+  stat:
+    path: "{{ dr_pgdata }}/postgresql.auto.conf"
+  register: auto_conf
+
+- name: Validate postgresql.auto.conf
+  assert:
+    that:
+      - auto_conf.stat.exists
+    fail_msg: "postgresql.auto.conf was not created."
+    success_msg: "postgresql.auto.conf created."
+
+###############################################################################
+# Display Base Backup Output
+###############################################################################
+
+- name: Display pg_basebackup output
+  debug:
+    var: basebackup.stdout_lines

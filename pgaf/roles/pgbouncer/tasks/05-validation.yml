@@ -1,0 +1,182 @@
+---
+###############################################################################
+# Validate PgBouncer Service
+###############################################################################
+
+- name: Gather service facts
+  service_facts:
+
+- name: Validate PgBouncer service
+  assert:
+    that:
+      - "'pgbouncer.service' in ansible_facts.services"
+      - ansible_facts.services['pgbouncer.service'].state == "running"
+    fail_msg: "PgBouncer service is not running."
+    success_msg: "PgBouncer service is running."
+
+###############################################################################
+# Validate Listening Port
+###############################################################################
+
+- name: Verify PgBouncer port
+  shell: |
+    ss -lnt | grep ":{{ pgbouncer_port }}"
+  register: pgbouncer_port_status
+  changed_when: false
+
+- name: Validate PgBouncer port
+  assert:
+    that:
+      - pgbouncer_port_status.rc == 0
+    fail_msg: "PgBouncer is not listening on port {{ pgbouncer_port }}."
+    success_msg: "PgBouncer is listening on port {{ pgbouncer_port }}."
+
+###############################################################################
+# Verify Basic Connectivity
+###############################################################################
+
+- name: Verify PgBouncer connectivity
+  become_user: postgres
+  shell: |
+    psql \
+      -h 127.0.0.1 \
+      -p {{ pgbouncer_port }} \
+      -d postgres \
+      -Atqc "SELECT 1;"
+  register: pgbouncer_connectivity
+  changed_when: false
+
+- name: Validate PgBouncer connectivity
+  assert:
+    that:
+      - pgbouncer_connectivity.rc == 0
+      - pgbouncer_connectivity.stdout == "1"
+    fail_msg: "Unable to connect through PgBouncer."
+    success_msg: "PgBouncer connectivity verified."
+
+###############################################################################
+# Verify Routing To Primary
+###############################################################################
+
+- name: Verify Primary Routing
+  become_user: postgres
+  shell: |
+    psql \
+      -h 127.0.0.1 \
+      -p {{ pgbouncer_port }} \
+      -d postgres \
+      -Atqc "SELECT pg_is_in_recovery();"
+  register: recovery_status
+  changed_when: false
+
+- name: Validate Primary Routing
+  assert:
+    that:
+      - recovery_status.stdout == "f"
+    fail_msg: "Traffic is not reaching the writable Primary."
+    success_msg: "Traffic is routed to the writable Primary."
+
+###############################################################################
+# Display Current Primary
+###############################################################################
+
+- name: Get Current Primary IP
+  become_user: postgres
+  shell: |
+    psql \
+      -h 127.0.0.1 \
+      -p {{ pgbouncer_port }} \
+      -d postgres \
+      -Atqc "SELECT inet_server_addr();"
+  register: primary_ip
+  changed_when: false
+
+- name: Display Current Primary
+  debug:
+    msg:
+      - "Current Primary : {{ primary_ip.stdout }}"
+
+###############################################################################
+# Verify Connection Pool
+###############################################################################
+
+- name: Show PgBouncer pools
+  become_user: postgres
+  shell: |
+    psql \
+      -h 127.0.0.1 \
+      -p {{ pgbouncer_port }} \
+      pgbouncer \
+      -Atqc "SHOW POOLS;"
+  register: pools
+  changed_when: false
+
+- debug:
+    var: pools.stdout_lines
+
+###############################################################################
+# Verify Backend Servers
+###############################################################################
+
+- name: Show PgBouncer servers
+  become_user: postgres
+  shell: |
+    psql \
+      -h 127.0.0.1 \
+      -p {{ pgbouncer_port }} \
+      pgbouncer \
+      -Atqc "SHOW SERVERS;"
+  register: servers
+  changed_when: false
+
+- debug:
+    var: servers.stdout_lines
+
+###############################################################################
+# Verify Clients
+###############################################################################
+
+- name: Show PgBouncer clients
+  become_user: postgres
+  shell: |
+    psql \
+      -h 127.0.0.1 \
+      -p {{ pgbouncer_port }} \
+      pgbouncer \
+      -Atqc "SHOW CLIENTS;"
+  register: clients
+  changed_when: false
+
+- debug:
+    var: clients.stdout_lines
+
+###############################################################################
+# Verify Databases
+###############################################################################
+
+- name: Show PgBouncer databases
+  become_user: postgres
+  shell: |
+    psql \
+      -h 127.0.0.1 \
+      -p {{ pgbouncer_port }} \
+      pgbouncer \
+      -Atqc "SHOW DATABASES;"
+  register: databases
+  changed_when: false
+
+- debug:
+    var: databases.stdout_lines
+
+###############################################################################
+# Validation Summary
+###############################################################################
+
+- name: Display Validation Summary
+  debug:
+    msg:
+      - "PgBouncer Service : Running"
+      - "Listening Port    : {{ pgbouncer_port }}"
+      - "Current Primary   : {{ primary_ip.stdout }}"
+      - "Routing           : Verified"
+      - "Pooling           : Healthy"

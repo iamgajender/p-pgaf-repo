@@ -1,0 +1,103 @@
+---
+###############################################################################
+# Check Authentication Files
+###############################################################################
+
+- name: Check pg_hba.conf
+  stat:
+    path: "{{ pgbouncer_hba }}"
+  register: pgbouncer_hba_stat
+
+- name: Check userlist.txt
+  stat:
+    path: "{{ pgbouncer_userlist }}"
+  register: pgbouncer_userlist_stat
+
+###############################################################################
+# Backup Existing Authentication Files
+###############################################################################
+
+- name: Backup pg_hba.conf
+  copy:
+    src: "{{ pgbouncer_hba }}"
+    dest: "{{ pgbouncer_hba }}.bak"
+    remote_src: yes
+  when: pgbouncer_hba_stat.stat.exists
+
+- name: Backup userlist.txt
+  copy:
+    src: "{{ pgbouncer_userlist }}"
+    dest: "{{ pgbouncer_userlist }}.bak"
+    remote_src: yes
+  when: pgbouncer_userlist_stat.stat.exists
+
+###############################################################################
+# Deploy pg_hba.conf
+###############################################################################
+
+- name: Deploy PgBouncer pg_hba.conf
+  template:
+    src: pg_hba.conf.j2
+    dest: "{{ pgbouncer_hba }}"
+    owner: postgres
+    group: postgres
+    mode: "0644"
+
+###############################################################################
+# Deploy userlist.txt
+###############################################################################
+
+- name: Deploy PgBouncer userlist.txt
+  template:
+    src: userlist.txt.j2
+    dest: "{{ pgbouncer_userlist }}"
+    owner: postgres
+    group: postgres
+    mode: "0600"
+
+###############################################################################
+# Verify pg_hba.conf
+###############################################################################
+
+- name: Verify pg_hba.conf
+  stat:
+    path: "{{ pgbouncer_hba }}"
+  register: hba_validation
+
+- name: Validate pg_hba.conf
+  assert:
+    that:
+      - hba_validation.stat.exists
+      - hba_validation.stat.isreg
+      - hba_validation.stat.mode == "0644"
+    fail_msg: "pg_hba.conf deployment failed."
+    success_msg: "pg_hba.conf deployed successfully."
+
+###############################################################################
+# Verify userlist.txt
+###############################################################################
+
+- name: Verify userlist.txt
+  stat:
+    path: "{{ pgbouncer_userlist }}"
+  register: userlist_validation
+
+- name: Validate userlist.txt
+  assert:
+    that:
+      - userlist_validation.stat.exists
+      - userlist_validation.stat.isreg
+      - userlist_validation.stat.mode == "0600"
+    fail_msg: "userlist.txt deployment failed."
+    success_msg: "userlist.txt deployed successfully."
+
+###############################################################################
+# Display Authentication Summary
+###############################################################################
+
+- name: Display authentication configuration
+  debug:
+    msg:
+      - "pg_hba.conf   : {{ pgbouncer_hba }}"
+      - "userlist.txt  : {{ pgbouncer_userlist }}"
+      - "Authentication configuration deployed successfully."

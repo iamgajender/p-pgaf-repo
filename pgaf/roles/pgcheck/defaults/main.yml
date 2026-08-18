@@ -1,0 +1,17 @@
+---
+pgcheck_port: 8008
+
+pgcheck_script: /usr/local/bin/pg_check.py
+
+pgcheck_service: pgcheck.service
+
+postgres_pgdata: "/var/lib/postgresql/17/data"
+
+postgres_user: postgres
+
+
+pg_autoctl_path: "/usr/bin/pg_autoctl"
+
+
+
+

@@ -1,0 +1,30 @@
+---
+###############################################################################
+# Verify Python3
+###############################################################################
+
+- name: Verify Python3 is installed
+  command: python3 --version
+  changed_when: false
+
+###############################################################################
+# Verify pg_autoctl
+###############################################################################
+
+- name: Verify pg_autoctl exists
+  command: which pg_autoctl
+  changed_when: false
+
+###############################################################################
+# Verify PostgreSQL
+###############################################################################
+
+- name: Verify PostgreSQL binaries
+  stat:
+    path: "{{ postgresql_bin_dir }}/psql"
+  register: postgres_bin
+
+- name: Validate PostgreSQL binaries
+  assert:
+    that:
+      - postgres_bin.stat.exists

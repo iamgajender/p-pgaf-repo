@@ -1,0 +1,8 @@
+---
+postgres_pgdata: /var/lib/postgresql/17/data
+
+
+monitor_uri: "postgres://autoctl_node@{{ monitor_ip }}:5432/pg_auto_failover?sslmode=require"
+
+postgres_service_name: pgautofailover.service
+

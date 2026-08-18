@@ -1,0 +1,59 @@
+---
+###############################################################################
+# Enable PgBouncer Service
+###############################################################################
+
+- name: Enable PgBouncer service
+  systemd:
+    name: pgbouncer
+    enabled: yes
+
+###############################################################################
+# Restart PgBouncer Service
+###############################################################################
+
+- name: Restart PgBouncer service
+  systemd:
+    name: pgbouncer
+    state: restarted
+    daemon_reload: yes
+
+###############################################################################
+# Wait for PgBouncer Port
+###############################################################################
+
+- name: Wait for PgBouncer to listen
+  wait_for:
+    host: 127.0.0.1
+    port: "{{ pgbouncer_port }}"
+    timeout: 60
+
+###############################################################################
+# Gather Service Facts
+###############################################################################
+
+- name: Gather service facts
+  service_facts:
+
+###############################################################################
+# Validate PgBouncer Service
+###############################################################################
+
+- name: Validate PgBouncer service
+  assert:
+    that:
+      - "'pgbouncer.service' in ansible_facts.services"
+      - ansible_facts.services['pgbouncer.service'].state == "running"
+    fail_msg: "PgBouncer service is not running."
+    success_msg: "PgBouncer service is running."
+
+###############################################################################
+# Display Service Status
+###############################################################################
+
+- name: Display PgBouncer service status
+  debug:
+    msg:
+      - "Service : pgbouncer"
+      - "Status  : {{ ansible_facts.services['pgbouncer.service'].state }}"
+      - "Port    : {{ pgbouncer_port }}"

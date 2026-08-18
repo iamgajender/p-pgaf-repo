@@ -1,0 +1,22 @@
+---
+- name: Verify service
+  systemd:
+    name: pgautofailover
+  register: service_status
+
+- name: Verify PostgreSQL port
+  wait_for:
+    host: "{{ monitor_ip }}"
+    port: "{{ postgres_port }}"
+    timeout: 5
+
+- name: Verify monitor process
+  command: pgrep -f pg_autoctl
+  register: process
+  changed_when: false
+
+- name: Display health
+  debug:
+    msg:
+      - "Service={{ service_status.status.ActiveState }}"
+      - "Process={{ process.stdout }}"

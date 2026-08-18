@@ -1,0 +1,14 @@
+---
+- name: Create pg_auto_failover monitor
+  become_user: postgres
+
+  shell: |
+    pg_autoctl create monitor \
+      --pgdata {{ monitor_pgdata }} \
+      --pgctl /usr/lib/postgresql/17/bin/pg_ctl \
+      --hostname {{ monitor_ip }} \
+      --ssl-self-signed \
+      --auth trust
+
+  args:
+    creates: "{{ monitor_pgdata }}/PG_VERSION"

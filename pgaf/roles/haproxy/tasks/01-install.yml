@@ -1,0 +1,47 @@
+---
+###############################################################################
+# Install HAProxy
+###############################################################################
+
+- name: Update apt package cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+###############################################################################
+# Install HAProxy
+###############################################################################
+
+- name: Install HAProxy package
+  apt:
+    name: haproxy
+    state: present
+
+###############################################################################
+# Verify HAProxy installation
+###############################################################################
+
+- name: Check HAProxy binary
+  stat:
+    path: /usr/sbin/haproxy
+  register: haproxy_binary
+
+- name: Validate HAProxy installation
+  assert:
+    that:
+      - haproxy_binary.stat.exists
+    fail_msg: "HAProxy installation failed."
+    success_msg: "HAProxy installed successfully."
+
+###############################################################################
+# Display HAProxy Version
+###############################################################################
+
+- name: Get HAProxy version
+  command: haproxy -v
+  register: haproxy_version
+  changed_when: false
+
+- name: Display HAProxy version
+  debug:
+    msg: "{{ haproxy_version.stdout }}"

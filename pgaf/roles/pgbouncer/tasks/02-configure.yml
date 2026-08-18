@@ -1,0 +1,67 @@
+---
+###############################################################################
+# Check Existing Configuration
+###############################################################################
+
+- name: Check if PgBouncer configuration exists
+  stat:
+    path: "{{ pgbouncer_ini }}"
+  register: pgbouncer_ini_stat
+
+###############################################################################
+# Backup Existing Configuration
+###############################################################################
+
+- name: Backup PgBouncer configuration
+  copy:
+    src: "{{ pgbouncer_ini }}"
+    dest: "{{ pgbouncer_ini }}.bak"
+    remote_src: yes
+    owner: root
+    group: root
+    mode: "0644"
+  when: pgbouncer_ini_stat.stat.exists
+
+###############################################################################
+# Deploy PgBouncer Configuration
+###############################################################################
+
+- name: Deploy PgBouncer configuration
+  template:
+    src: pgbouncer.ini.j2
+    dest: "{{ pgbouncer_ini }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+###############################################################################
+# Verify Configuration File
+###############################################################################
+
+- name: Verify PgBouncer configuration file
+  stat:
+    path: "{{ pgbouncer_ini }}"
+  register: pgbouncer_config
+
+- name: Validate PgBouncer configuration file
+  assert:
+    that:
+      - pgbouncer_config.stat.exists
+      - pgbouncer_config.stat.isreg
+      - pgbouncer_config.stat.pw_name == "root"
+      - pgbouncer_config.stat.gr_name == "root"
+      - pgbouncer_config.stat.mode == "0644"
+    fail_msg: "PgBouncer configuration file verification failed."
+    success_msg: "PgBouncer configuration deployed successfully."
+
+###############################################################################
+# Display Configuration File
+###############################################################################
+
+- name: Show PgBouncer configuration file
+  debug:
+    msg:
+      - "Configuration File : {{ pgbouncer_ini }}"
+      - "Owner              : {{ pgbouncer_config.stat.pw_name }}"
+      - "Group              : {{ pgbouncer_config.stat.gr_name }}"
+      - "Permissions        : {{ pgbouncer_config.stat.mode }}"

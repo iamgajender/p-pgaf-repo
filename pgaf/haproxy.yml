@@ -1,0 +1,8 @@
+
+# deploye the haproxy
+- hosts: haproxy
+  become: yes
+  roles:
+    - haproxy
+
+

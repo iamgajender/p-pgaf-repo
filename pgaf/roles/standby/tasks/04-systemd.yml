@@ -1,0 +1,14 @@
+---
+- name: Check systemd file
+  stat:
+    path: "/etc/systemd/system/{{ postgres_service_name }}"
+  register: pgaf_service
+
+- name: Generate pg_auto_failover systemd service
+  shell: |
+    sudo -u postgres pg_autoctl show systemd \
+      --pgdata {{ postgres_pgdata }} \
+      > /etc/systemd/system/{{ postgres_service_name }}
+  when: not pgaf_service.stat.exists
+  notify:
+    - reload systemd

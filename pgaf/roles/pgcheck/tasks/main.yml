@@ -1,0 +1,10 @@
+---
+- import_tasks: 01-precheck.yml
+
+- import_tasks: 02-deploy-script.yml
+
+- import_tasks: 03-systemd.yml
+
+- import_tasks: 04-service.yml
+
+- import_tasks: 05-validation.yml

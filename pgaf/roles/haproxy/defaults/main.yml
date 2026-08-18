@@ -1,0 +1,12 @@
+haproxy_port: 5000
+haproxy_stats_port: 7000
+haproxy_maxconn: 5000
+pgcheck_port: 8008
+
+postgres_port: 5432
+
+haproxy_config_file: /etc/haproxy/haproxy.cfg
+
+haproxy_backend_name: postgres_back
+
+haproxy_frontend_name: postgres_front

@@ -1,0 +1,145 @@
+---
+###############################################################################
+# Validate HAProxy Service
+###############################################################################
+
+- name: Gather service facts
+  service_facts:
+
+- name: Verify HAProxy service
+  assert:
+    that:
+      - "'haproxy.service' in ansible_facts.services"
+      - ansible_facts.services['haproxy.service'].state == "running"
+    fail_msg: "HAProxy service is not running."
+    success_msg: "HAProxy service is running."
+
+###############################################################################
+# Validate Frontend Port
+###############################################################################
+
+- name: Verify frontend port
+  shell: |
+    ss -lnt | grep ":{{ haproxy_port }}"
+  register: frontend_port
+  changed_when: false
+
+- name: Validate frontend port
+  assert:
+    that:
+      - frontend_port.rc == 0
+    fail_msg: "HAProxy frontend port {{ haproxy_port }} is not listening."
+    success_msg: "HAProxy frontend port {{ haproxy_port }} is listening."
+
+###############################################################################
+# Validate Statistics Port
+###############################################################################
+
+- name: Verify statistics port
+  shell: |
+    ss -lnt | grep ":{{ haproxy_stats_port }}"
+  register: stats_port
+  changed_when: false
+
+- name: Validate statistics port
+  assert:
+    that:
+      - stats_port.rc == 0
+    fail_msg: "HAProxy statistics port {{ haproxy_stats_port }} is not listening."
+    success_msg: "HAProxy statistics port {{ haproxy_stats_port }} is listening."
+
+###############################################################################
+# Validate Configuration
+###############################################################################
+
+- name: Validate HAProxy configuration
+  command:
+    argv:
+      - haproxy
+      - -c
+      - -f
+      - "{{ haproxy_config_file }}"
+  register: haproxy_config
+  changed_when: false
+
+- name: Validate configuration syntax
+  assert:
+    that:
+      - haproxy_config.rc == 0
+    fail_msg: "HAProxy configuration validation failed."
+    success_msg: "HAProxy configuration syntax is valid."
+
+###############################################################################
+# Validate Statistics Page
+###############################################################################
+
+- name: Query HAProxy statistics page
+  uri:
+    url: "http://127.0.0.1:{{ haproxy_stats_port }}/haproxy"
+    status_code: 200
+  register: haproxy_stats
+  changed_when: false
+
+- name: Validate statistics page
+  assert:
+    that:
+      - haproxy_stats.status == 200
+    fail_msg: "Unable to access HAProxy statistics page."
+    success_msg: "HAProxy statistics page is reachable."
+
+###############################################################################
+# Validate Backend Health
+###############################################################################
+
+- name: Get backend statistics
+  uri:
+    url: "http://127.0.0.1:{{ haproxy_stats_port }}/haproxy;csv"
+    return_content: yes
+    status_code: 200
+  register: backend_stats
+  changed_when: false
+
+- name: Validate at least one backend is UP
+  assert:
+    that:
+      - backend_stats.content is search(",UP,")
+    fail_msg: "No healthy PostgreSQL backend is available."
+    success_msg: "At least one PostgreSQL backend is UP."
+
+###############################################################################
+# Validate PostgreSQL Routing
+###############################################################################
+
+- name: Verify routing through HAProxy
+  become_user: postgres
+  shell: |
+    psql \
+      -h 127.0.0.1 \
+      -p {{ haproxy_port }} \
+      -d postgres \
+      -Atqc "SELECT pg_is_in_recovery();"
+  register: postgres_route
+  changed_when: false
+
+- name: Validate routing to Primary
+  assert:
+    that:
+      - postgres_route.rc == 0
+      - postgres_route.stdout == "f"
+    fail_msg: "HAProxy is not routing connections to the writable Primary."
+    success_msg: "HAProxy is routing connections to the writable Primary."
+
+###############################################################################
+# Display Validation Summary
+###############################################################################
+
+- name: Display HAProxy validation summary
+  debug:
+    msg:
+      - "HAProxy Service      : Running"
+      - "Frontend Port        : {{ haproxy_port }}"
+      - "Statistics Port      : {{ haproxy_stats_port }}"
+      - "Configuration        : Valid"
+      - "Statistics Page      : Reachable"
+      - "Backend Health       : Healthy"
+      - "Primary Routing      : Verified"

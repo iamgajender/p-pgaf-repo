@@ -1,0 +1,15 @@
+---
+- name: Insert pg_hba cluster rules
+  blockinfile:
+    path: "{{ postgres_pgdata }}/pg_hba.conf"
+
+    marker: "# {mark} ANSIBLE PG_AUTOFAILOVER"
+
+    block: "{{ lookup('template', 'pg_hba_block.j2') }}"
+
+    owner: postgres
+    group: postgres
+    mode: "0600"
+
+  notify:
+    - reload postgres

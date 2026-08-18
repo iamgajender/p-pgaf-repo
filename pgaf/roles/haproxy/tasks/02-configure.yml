@@ -1,0 +1,63 @@
+---
+###############################################################################
+# Backup Existing Configuration
+###############################################################################
+
+- name: Check if HAProxy configuration exists
+  stat:
+    path: /etc/haproxy/haproxy.cfg
+  register: haproxy_cfg
+
+- name: Backup HAProxy configuration
+  copy:
+    src: /etc/haproxy/haproxy.cfg
+    dest: /etc/haproxy/haproxy.cfg.bak
+    remote_src: yes
+    owner: root
+    group: root
+    mode: '0644'
+  when: haproxy_cfg.stat.exists
+
+###############################################################################
+# Deploy Configuration
+###############################################################################
+
+- name: Deploy HAProxy configuration
+  template:
+    src: haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+    owner: root
+    group: root
+    mode: '0644'
+
+###############################################################################
+# Validate Configuration
+###############################################################################
+
+- name: Validate HAProxy configuration
+  command: >
+    haproxy -c -f /etc/haproxy/haproxy.cfg
+  register: haproxy_validation
+  changed_when: false
+
+- name: Display validation output
+  debug:
+    var: haproxy_validation.stdout_lines
+
+- name: Verify configuration validation
+  assert:
+    that:
+      - haproxy_validation.rc == 0
+    fail_msg: "HAProxy configuration validation failed."
+    success_msg: "HAProxy configuration is valid."
+
+###############################################################################
+# Restart HAProxy
+###############################################################################
+
+- name: Restart HAProxy
+  systemd:
+    name: haproxy
+    state: restarted
+    enabled: yes
+  when: haproxy_validation.rc == 0

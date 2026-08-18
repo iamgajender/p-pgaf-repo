@@ -1,0 +1,80 @@
+---
+###############################################################################
+# Validation : Precheck
+###############################################################################
+
+- name: Verify PostgreSQL binary directory exists
+  stat:
+    path: "{{ postgresql_bin_dir }}"
+  register: postgres_bin
+
+- name: Validate PostgreSQL binary directory
+  assert:
+    that:
+      - postgres_bin.stat.exists
+      - postgres_bin.stat.isdir
+    fail_msg: "PostgreSQL binary directory not found: {{ postgresql_bin_dir }}"
+    success_msg: "PostgreSQL binary directory exists."
+
+###############################################################################
+# Check pg_autoctl Binary
+###############################################################################
+
+- name: Check pg_autoctl binary
+  command: which pg_autoctl
+  register: pg_autoctl_binary
+  changed_when: false
+
+- name: Validate pg_autoctl binary
+  assert:
+    that:
+      - pg_autoctl_binary.rc == 0
+    fail_msg: "pg_autoctl binary not found."
+    success_msg: "pg_autoctl binary found."
+
+###############################################################################
+# Verify SSH Connectivity
+###############################################################################
+
+- name: Verify SSH connectivity to all cluster nodes
+  wait_for:
+    host: "{{ item }}"
+    port: 22
+    timeout: 5
+    state: started
+  loop:
+    - "{{ primary_ip }}"
+    - "{{ monitor_ip }}"
+    - "{{ standby1_ip }}"
+    - "{{ standby2_ip }}"
+
+###############################################################################
+# Verify PostgreSQL Port
+###############################################################################
+
+- name: Verify PostgreSQL port is reachable
+  wait_for:
+    host: "{{ item }}"
+    port: "{{ postgres_port }}"
+    timeout: 5
+    state: started
+  loop:
+    - "{{ monitor_ip }}"
+    - "{{ primary_ip }}"
+    - "{{ standby1_ip }}"
+    - "{{ standby2_ip }}"
+
+###############################################################################
+# Precheck Completed
+###############################################################################
+
+- name: Precheck completed
+  debug:
+    msg:
+      - "========================================"
+      - " Production Precheck : PASSED"
+      - " All cluster nodes are reachable."
+      - " PostgreSQL binaries verified."
+      - " pg_autoctl verified."
+      - " SSH connectivity verified."
+      - "========================================"

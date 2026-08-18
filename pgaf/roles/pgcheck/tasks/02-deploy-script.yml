@@ -1,0 +1,14 @@
+---
+###############################################################################
+# Deploy Python Health Script
+###############################################################################
+
+- name: Deploy pg_check.py
+  template:
+    src: pg_check.py.j2
+    dest: "{{ pgcheck_script }}"
+    owner: postgres
+    group: postgres
+    mode: "0755"
+  notify:
+    - restart pgcheck

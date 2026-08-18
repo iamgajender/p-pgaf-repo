@@ -1,0 +1,10 @@
+---
+###############################################################################
+# Validate all Standby Nodes
+###############################################################################
+
+- name: Validate all standby nodes
+  include_tasks: standby-node.yml
+  loop: "{{ groups['standby'] }}"
+  loop_control:
+    loop_var: standby

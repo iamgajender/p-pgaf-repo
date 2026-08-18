@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>High Availability — PostgreSQL Automation Portal</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+</head>
+
+<body>
+
+<div class="sidebar">
+    <div class="logo">
+        <img src="../images/postgres.png">
+        <h2>PostgreSQL</h2>
+        <span>Automation Portal</span>
+    </div>
+    <ul>
+        <li>
+            <a href="../index.html">
+                <i class="fa-solid fa-house"></i>
+                Dashboard
+            </a>
+        </li>
+        <li>
+            <a href="../standalone/install.html">
+                <i class="fa-solid fa-server"></i>
+                Standalone Installation
+            </a>
+        </li>
+        <li>
+            <a href="../users/index.html">
+                <i class="fa-solid fa-users"></i>
+                User Management
+            </a>
+        </li>
+        <li>
+            <a href="../roles/index.html">
+                <i class="fa-solid fa-user-shield"></i>
+                Role Management
+            </a>
+        </li>
+        <li class="active">
+            <a href="index.html">
+                <i class="fa-solid fa-network-wired"></i>
+                High Availability
+            </a>
+        </li>
+    </ul>
+</div>
+
+<div class="main">
+    <header>
+        <h1>High Availability</h1>
+        <div class="profile">
+            <i class="fa-solid fa-circle-user"></i>
+            Administrator
+        </div>
+    </header>
+
+    <div class="result-panel">
+        <h3>Cluster Nodes</h3>
+        <form id="ha-form" onsubmit="event.preventDefault(); deployHA();" autocomplete="off">
+
+            <div class="form-grid">
+                <div class="form-field">
+                    <label for="monitor_ip">Monitor Node IP</label>
+                    <input type="text" id="monitor_ip" placeholder="10.0.2.207"
+                           pattern="^(\d{1,3}\.){3}\d{1,3}$" required autocomplete="off">
+                </div>
+
+                <div class="form-field">
+                    <label for="primary_ip">Primary Node IP</label>
+                    <input type="text" id="primary_ip" placeholder="10.0.2.169"
+                           pattern="^(\d{1,3}\.){3}\d{1,3}$" required autocomplete="off">
+                </div>
+
+                <div class="form-field">
+                    <label for="standby1_ip">Secondary 1 IP</label>
+                    <input type="text" id="standby1_ip" placeholder="10.0.2.128"
+                           pattern="^(\d{1,3}\.){3}\d{1,3}$" required autocomplete="off">
+                </div>
+
+                <div class="form-field">
+                    <label for="standby2_ip">Secondary 2 IP</label>
+                    <input type="text" id="standby2_ip" placeholder="10.0.2.17"
+                           pattern="^(\d{1,3}\.){3}\d{1,3}$" required autocomplete="off">
+                </div>
+
+                <div class="form-field">
+                    <label for="haproxy_pgbouncer_ip">HAProxy / PgBouncer IP</label>
+                    <input type="text" id="haproxy_pgbouncer_ip" placeholder="10.0.2.84"
+                           pattern="^(\d{1,3}\.){3}\d{1,3}$" required autocomplete="off">
+                    <span class="field-hint">Same node runs both HAProxy and PgBouncer.</span>
+                </div>
+
+                <div class="form-field">
+                    <label for="postgres_version">PostgreSQL Version</label>
+                    <select id="postgres_version" required>
+                        <option value="16">PostgreSQL 16</option>
+                        <option value="17" selected>PostgreSQL 17</option>
+                        <option value="18">PostgreSQL 18</option>
+                    </select>
+                </div>
+            </div>
+
+            <hr>
+
+            <div class="form-grid">
+                <div class="form-field">
+                    <label for="ssh_user">SSH Username</label>
+                    <input type="text" id="ssh_user" placeholder="root" value="root" required>
+                </div>
+
+                <div class="form-field">
+                    <label for="ssh_password">SSH Password</label>
+                    <input type="password" id="ssh_password" placeholder="••••••••"
+                           required autocomplete="new-password">
+                </div>
+            </div>
+            <p class="field-hint">
+                Same SSH credentials are used for every node — monitor, primary, both secondaries, and HAProxy/PgBouncer.
+            </p>
+
+            <div id="connectivity-status" class="connection-status" hidden style="white-space:pre-wrap; font-family:var(--font-mono); font-size:0.8125rem;"></div>
+
+            <div class="result-actions">
+                <button type="button" class="btn btn-outline" id="test-connectivity-btn" onclick="testConnectivity()">
+                    <i class="fa-solid fa-plug-circle-check"></i>
+                    Test Connectivity
+                </button>
+                <button type="submit" class="btn btn-primary" id="deploy-ha-btn">
+                    <i class="fa-solid fa-network-wired"></i>
+                    Deploy pg_auto_failover Cluster
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="result-panel">
+        <h3>Deployment Log</h3>
+        <div id="status" class="log-panel">Waiting to start deployment…</div>
+    </div>
+
+    <footer>© 2026 PostgreSQL Automation Portal</footer>
+</div>
+
+<script src="../js/ha.js"></script>
+</body>
+</html>

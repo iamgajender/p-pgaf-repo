@@ -1,0 +1,10 @@
+---
+- name: Generate systemd service
+  shell: |
+    sudo -u postgres pg_autoctl show systemd \
+    --pgdata {{ monitor_pgdata }} \
+    > /etc/systemd/system/pgautofailover.service
+
+- name: Reload systemd
+  systemd:
+    daemon_reload: yes

@@ -1,0 +1,74 @@
+---
+###############################################################################
+# Enable HAProxy Service
+###############################################################################
+
+- name: Enable HAProxy service
+  systemd:
+    name: haproxy
+    enabled: yes
+
+###############################################################################
+# Restart HAProxy
+###############################################################################
+
+- name: Restart HAProxy service
+  systemd:
+    name: haproxy
+    state: restarted
+
+###############################################################################
+# Wait for HAProxy Service
+###############################################################################
+
+- name: Wait for HAProxy service to start
+  wait_for:
+    timeout: 10
+
+###############################################################################
+# Wait for PostgreSQL Frontend Port
+###############################################################################
+
+- name: Wait for HAProxy frontend port
+  wait_for:
+    host: 127.0.0.1
+    port: "{{ haproxy_port }}"
+    state: started
+    timeout: 30
+
+###############################################################################
+# Wait for Statistics Page Port
+###############################################################################
+
+- name: Wait for HAProxy statistics port
+  wait_for:
+    host: 127.0.0.1
+    port: "{{ haproxy_stats_port }}"
+    state: started
+    timeout: 30
+
+###############################################################################
+# Verify HAProxy Service
+###############################################################################
+
+- name: Gather service facts
+  service_facts:
+
+- name: Validate HAProxy service
+  assert:
+    that:
+      - "'haproxy.service' in ansible_facts.services"
+      - ansible_facts.services['haproxy.service'].state == "running"
+    fail_msg: "HAProxy service is not running."
+    success_msg: "HAProxy service is running."
+
+###############################################################################
+# Display Service Status
+###############################################################################
+
+- name: Display HAProxy status
+  debug:
+    msg:
+      - "HAProxy Service : Running"
+      - "Frontend Port   : {{ haproxy_port }}"
+      - "Statistics Port : {{ haproxy_stats_port }}"

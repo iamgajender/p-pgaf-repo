@@ -1,0 +1,15 @@
+---
+- name: Show standby state
+  become_user: postgres
+
+  shell: |
+    pg_autoctl show state \
+      --pgdata {{ postgres_pgdata }}
+
+  register: standby_state
+
+  changed_when: false
+
+- name: Display standby state
+  debug:
+    var: standby_state.stdout

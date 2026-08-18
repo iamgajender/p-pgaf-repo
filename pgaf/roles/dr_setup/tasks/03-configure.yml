@@ -1,0 +1,76 @@
+---
+###############################################################################
+# Verify standby.signal
+###############################################################################
+
+- name: Verify standby.signal
+  stat:
+    path: "{{ dr_pgdata }}/standby.signal"
+  register: standby_signal
+
+- name: Validate standby.signal
+  assert:
+    that:
+      - standby_signal.stat.exists
+    fail_msg: "standby.signal does not exist."
+    success_msg: "standby.signal verified."
+
+###############################################################################
+# Verify postgresql.auto.conf
+###############################################################################
+
+- name: Verify postgresql.auto.conf
+  stat:
+    path: "{{ dr_pgdata }}/postgresql.auto.conf"
+  register: auto_conf
+
+- name: Validate postgresql.auto.conf
+  assert:
+    that:
+      - auto_conf.stat.exists
+    fail_msg: "postgresql.auto.conf not found."
+    success_msg: "postgresql.auto.conf verified."
+
+###############################################################################
+# Configure primary_conninfo
+###############################################################################
+
+- name: Configure primary_conninfo
+  become_user: postgres
+  lineinfile:
+    path: "{{ dr_pgdata }}/postgresql.auto.conf"
+    regexp: "^primary_conninfo"
+    line: >
+      primary_conninfo = 'host={{ haproxy_host }}
+      port={{ haproxy_port }}
+      user={{ replication_user }}
+      application_name={{ inventory_hostname }}'
+    create: yes
+
+###############################################################################
+# Configure replication slot
+###############################################################################
+
+- name: Configure primary_slot_name
+  become_user: postgres
+  lineinfile:
+    path: "{{ dr_pgdata }}/postgresql.auto.conf"
+    regexp: "^primary_slot_name"
+    line: "primary_slot_name = '{{ replication_slot }}'"
+    create: yes
+
+###############################################################################
+# Verify Configuration
+###############################################################################
+
+- name: Display replication configuration
+  become_user: postgres
+  shell: |
+    grep -E 'primary_conninfo|primary_slot_name' \
+    {{ dr_pgdata }}/postgresql.auto.conf
+  register: replication_config
+  changed_when: false
+
+- name: Show replication configuration
+  debug:
+    var: replication_config.stdout_lines

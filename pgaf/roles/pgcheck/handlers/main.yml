@@ -1,0 +1,9 @@
+---
+- name: restart pgcheck
+  service:
+    name: "{{ pgcheck_service }}"
+    state: restarted
+
+- name: reload systemd
+  systemd:
+    daemon_reload: yes

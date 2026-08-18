@@ -1,0 +1,16 @@
+---
+- import_tasks: 01-precheck.yml
+
+- import_tasks: 02-initialize.yml
+
+- import_tasks: 03-create.yml
+
+- import_tasks: configure.yml
+
+- import_tasks: 04-systemd.yml
+
+- import_tasks: 05-service.yml
+
+- import_tasks: 06-validation.yml
+
+- import_tasks: 07-health.yml

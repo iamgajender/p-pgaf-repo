@@ -1,0 +1,170 @@
+---
+###############################################################################
+# Validate PostgreSQL Availability
+###############################################################################
+
+- name: Wait for PostgreSQL
+  become_user: postgres
+  shell: |
+    {{ postgresql_bin_dir }}/pg_isready \
+      -h 127.0.0.1 \
+      -p {{ postgres_port }}
+  register: pg_ready
+  retries: 30
+  delay: 2
+  until: pg_ready.rc == 0
+  changed_when: false
+
+- name: Validate PostgreSQL availability
+  assert:
+    that:
+      - pg_ready.rc == 0
+    fail_msg: "PostgreSQL is not accepting connections."
+    success_msg: "PostgreSQL is accepting connections."
+
+###############################################################################
+# Validate PostgreSQL Connectivity
+###############################################################################
+
+- name: Verify PostgreSQL connectivity
+  become_user: postgres
+  shell: |
+    {{ postgresql_bin_dir }}/psql \
+      -Atqc "SELECT 1;"
+  register: postgres_connection
+  changed_when: false
+
+- name: Validate PostgreSQL connectivity
+  assert:
+    that:
+      - postgres_connection.stdout == "1"
+    fail_msg: "Unable to connect to PostgreSQL."
+    success_msg: "PostgreSQL connectivity verified."
+
+###############################################################################
+# Validate Recovery Mode
+###############################################################################
+
+- name: Get recovery mode
+  become_user: postgres
+  shell: |
+    {{ postgresql_bin_dir }}/psql \
+      -Atqc "SELECT pg_is_in_recovery();"
+  register: recovery
+  changed_when: false
+
+- name: Validate recovery mode
+  assert:
+    that:
+      - recovery.stdout == "t"
+    fail_msg: "DR server is not running as a standby."
+    success_msg: "DR server is running in recovery mode."
+
+###############################################################################
+# Validate WAL Receiver
+###############################################################################
+
+- name: Get WAL receiver status
+  become_user: postgres
+  shell: |
+    {{ postgresql_bin_dir }}/psql \
+      -Atqc "SELECT status FROM pg_stat_wal_receiver;"
+  register: wal_receiver
+  changed_when: false
+
+- name: Validate WAL receiver
+  assert:
+    that:
+      - wal_receiver.stdout == "streaming"
+    fail_msg: "WAL receiver is not streaming."
+    success_msg: "WAL receiver is streaming."
+
+###############################################################################
+# Validate Receive LSN
+###############################################################################
+
+- name: Get receive LSN
+  become_user: postgres
+  shell: |
+    {{ postgresql_bin_dir }}/psql \
+      -Atqc "SELECT pg_last_wal_receive_lsn();"
+  register: receive_lsn
+  changed_when: false
+
+- name: Validate receive LSN
+  assert:
+    that:
+      - receive_lsn.stdout != ""
+    fail_msg: "Receive LSN is empty."
+    success_msg: "Receive LSN detected."
+
+###############################################################################
+# Validate Replay LSN
+###############################################################################
+
+- name: Get replay LSN
+  become_user: postgres
+  shell: |
+    {{ postgresql_bin_dir }}/psql \
+      -Atqc "SELECT pg_last_wal_replay_lsn();"
+  register: replay_lsn
+  changed_when: false
+
+- name: Validate replay LSN
+  assert:
+    that:
+      - replay_lsn.stdout != ""
+    fail_msg: "Replay LSN is empty."
+    success_msg: "Replay LSN detected."
+
+###############################################################################
+# Show Primary Connection
+###############################################################################
+
+- name: Show primary connection
+  become_user: postgres
+  shell: |
+    {{ postgresql_bin_dir }}/psql \
+      -Atqc "SHOW primary_conninfo;"
+  register: primary_conninfo
+  changed_when: false
+
+- debug:
+    msg:
+      - "Primary Connection:"
+      - "{{ primary_conninfo.stdout }}"
+
+###############################################################################
+# Show Replication Slot
+###############################################################################
+
+- name: Show replication slot
+  become_user: postgres
+  shell: |
+    {{ postgresql_bin_dir }}/psql \
+      -Atqc "SHOW primary_slot_name;"
+  register: replication_slot
+  changed_when: false
+
+- debug:
+    msg:
+      - "Replication Slot:"
+      - "{{ replication_slot.stdout }}"
+
+###############################################################################
+# Validation Summary
+###############################################################################
+
+- name: Display DR Validation Summary
+  debug:
+    msg:
+      - "==========================================="
+      - "DR Replica Validation Successful"
+      - "==========================================="
+      - "Status            : Running"
+      - "Recovery Mode     : {{ recovery.stdout }}"
+      - "WAL Receiver      : {{ wal_receiver.stdout }}"
+      - "Receive LSN       : {{ receive_lsn.stdout }}"
+      - "Replay LSN        : {{ replay_lsn.stdout }}"
+      - "Replication Slot  : {{ replication_slot.stdout }}"
+      - "==========================================="

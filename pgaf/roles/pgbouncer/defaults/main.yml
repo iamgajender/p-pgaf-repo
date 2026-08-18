@@ -1,0 +1,114 @@
+---
+###############################################################################
+# Files
+###############################################################################
+
+pgbouncer_ini: /etc/pgbouncer/pgbouncer.ini
+
+pgbouncer_hba: /etc/pgbouncer/pg_hba.conf
+
+pgbouncer_userlist: /etc/pgbouncer/userlist.txt
+
+###############################################################################
+# Network
+###############################################################################
+
+pgbouncer_listen_addr: 0.0.0.0
+
+pgbouncer_port: 6432
+
+pgbouncer_socket_dir: /var/run/postgresql
+
+###############################################################################
+# Backend
+###############################################################################
+
+haproxy_host: "{{ groups['haproxy'][0] }}"
+
+haproxy_port: 5000
+
+###############################################################################
+# Authentication
+###############################################################################
+
+pgbouncer_auth_type: hba
+
+pgbouncer_auth_file: "{{ pgbouncer_userlist }}"
+
+pgbouncer_auth_hba_file: "{{ pgbouncer_hba }}"
+
+###############################################################################
+# Pool Mode
+###############################################################################
+
+pgbouncer_pool_mode: transaction
+
+###############################################################################
+# Connections
+###############################################################################
+
+pgbouncer_max_client_conn: 1000
+
+pgbouncer_default_pool_size: 50
+
+pgbouncer_reserve_pool_size: 10
+
+pgbouncer_reserve_pool_timeout: 5
+
+###############################################################################
+# Health Checks
+###############################################################################
+
+pgbouncer_server_check_query: "SELECT 1"
+
+pgbouncer_server_check_delay: 30
+
+pgbouncer_server_reset_query: "DISCARD ALL"
+
+###############################################################################
+# Timeouts
+###############################################################################
+
+pgbouncer_client_idle_timeout: 600
+
+pgbouncer_server_idle_timeout: 600
+
+pgbouncer_query_timeout: 300
+
+pgbouncer_query_wait_timeout: 120
+
+###############################################################################
+# Logging
+###############################################################################
+
+pgbouncer_log_connections: 1
+
+pgbouncer_log_disconnections: 1
+
+pgbouncer_log_pooler_errors: 1
+
+pgbouncer_logfile: /var/log/pgbouncer.log
+
+pgbouncer_pidfile: /var/run/pgbouncer.pid
+
+###############################################################################
+# Admin Users
+###############################################################################
+
+pgbouncer_admin_users: postgres
+
+pgbouncer_stats_users: postgres
+
+###############################################################################
+# Startup Parameters
+###############################################################################
+
+pgbouncer_ignore_startup_parameters: extra_float_digits
+
+
+pgbouncer_user: postgres
+pgbouncer_group: postgres
+
+
+
+postgres_scram_password: postgres@123

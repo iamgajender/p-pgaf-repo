@@ -1,0 +1,12 @@
+---
+- name: Verify monitor
+  become_user: postgres
+
+  shell: |
+    pg_autoctl show uri \
+    --pgdata {{ monitor_pgdata }}
+
+  register: monitor_uri
+
+- debug:
+    var: monitor_uri.stdout

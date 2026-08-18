@@ -1,0 +1,10 @@
+---
+- name: Check if pg_autoctl exists
+  stat:
+    path: /usr/bin/pg_autoctl
+  register: pg_autoctl_binary
+
+- name: Fail if pg_autoctl is not installed
+  fail:
+    msg: "pg_autoctl is not installed."
+  when: not pg_autoctl_binary.stat.exists

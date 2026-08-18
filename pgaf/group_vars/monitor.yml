@@ -1,0 +1,2 @@
+---
+monitor_pgdata: "/var/lib/postgresql/{{ postgres_version }}/monitor"
