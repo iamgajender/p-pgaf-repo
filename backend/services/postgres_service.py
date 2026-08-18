@@ -800,12 +800,27 @@ class PostgresService:
             conn = self._connect(connect_data)
             cursor = conn.cursor()
 
+            usage_note = ""
+
+            # A table grant is useless without USAGE on the schema that
+            # contains it — Postgres won't let a role even reference
+            # "schema.table" without it, regardless of table-level
+            # privileges. This modal has no separate schema-privileges
+            # step (only the Create Role wizard does), so on grant we
+            # make sure USAGE is always included rather than relying on
+            # someone remembering to grant it separately. Idempotent —
+            # safe to run even if the role already has USAGE.
+            if action == "grant":
+                cursor.execute(
+                    sql.SQL("GRANT USAGE ON SCHEMA {} TO {}").format(
+                        sql.Identifier(schema), sql.Identifier(username)
+                    )
+                )
+                usage_note = f' (USAGE on schema "{schema}" was granted automatically, since table privileges need it)'
+
             privilege_clause = sql.SQL(", ").join(
                 sql.SQL(p) for p in privileges
             )
-
-            verb = sql.SQL("GRANT") if action == "grant" else sql.SQL("REVOKE")
-            preposition = sql.SQL("TO") if action == "grant" else sql.SQL("FROM")
 
             if requested_tables:
                 target_clause = sql.SQL("TABLE {}").format(
@@ -834,7 +849,8 @@ class PostgresService:
                     f'{"Granted" if action == "grant" else "Revoked"} '
                     f'{", ".join(privileges)} on {target_description} in '
                     f'"{connect_data["database"]}" '
-                    f'{"to" if action == "grant" else "from"} "{username}".'
+                    f'{"to" if action == "grant" else "from"} "{username}"'
+                    f'{usage_note}.'
                 )
             }
 
