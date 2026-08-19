@@ -9,7 +9,7 @@ pipeline {
                 echo "===== HOSTNAME ====="
                 hostname
 
-                echo "===== USER ====="
+                echo "===== Linux USER ====="
                 whoami
 
                 echo "===== IP ADDRESS ====="
