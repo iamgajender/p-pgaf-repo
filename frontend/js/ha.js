@@ -4,6 +4,18 @@ function escapeHtml(value) {
     return div.innerHTML;
 }
 
+// A 404/500 from Flask often comes back as an HTML error page, not JSON
+// (e.g. the route doesn't exist because Flask wasn't restarted after a
+// deploy). response.json() throws a SyntaxError on that, which otherwise
+// gets swallowed into a misleading "could not reach the backend" message.
+async function parseJsonSafely(response) {
+    try {
+        return await response.json();
+    } catch (error) {
+        throw new Error(`Unexpected response from server (HTTP ${response.status}). The route may not exist yet — has Flask been restarted since the last deploy?`);
+    }
+}
+
 function collectHAPayload() {
     return {
         monitor_ip: document.getElementById("monitor_ip").value.trim(),
@@ -44,14 +56,14 @@ async function testConnectivity() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
         });
-        const result = await response.json();
+        const result = await parseJsonSafely(response);
 
         statusEl.className = "connection-status " + (result.status === "success" ? "log-success" : "log-error");
         statusEl.textContent = `${result.message}\n\n${result.output || ""}`.trim();
     } catch (error) {
         console.error(error);
         statusEl.className = "connection-status log-error";
-        statusEl.textContent = "Could not reach the backend to run the connectivity check.";
+        statusEl.textContent = error.message || "Could not reach the backend to run the connectivity check.";
     } finally {
         setButtonBusy(
             "test-connectivity-btn", false,
@@ -82,7 +94,7 @@ async function deployHA() {
         });
         clearInterval(timer);
 
-        const result = await response.json();
+        const result = await parseJsonSafely(response);
 
         if (!response.ok || result.status !== "success") {
             status.innerHTML = `
