@@ -61,6 +61,28 @@
         </div>
     </header>
 
+    <div class="result-panel prereq-banner">
+        <h3><i class="fa-solid fa-triangle-exclamation"></i> Before you deploy</h3>
+        <p>
+            Make sure this Ansible controller already has passwordless SSH access
+            (or a working SSH password) to <strong>every node below</strong> — monitor,
+            primary, both secondaries, and the HAProxy/PgBouncer host. Use
+            <strong>Test Connectivity</strong> to confirm before running the real deployment.
+        </p>
+    </div>
+
+    <div class="result-panel" style="background:rgba(198,48,62,0.06); border-color:rgba(198,48,62,0.3);">
+        <h3 style="color:var(--signal-red);">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            Before you deploy
+        </h3>
+        <p class="field-hint" style="font-size:0.85rem;">
+            Make sure the Ansible controller has <strong>passwordless (key-based) SSH access</strong>
+            to every node below — monitor, primary, both secondaries, and the HAProxy/PgBouncer host —
+            before running a deployment. Use <strong>Test Connectivity</strong> to verify this first.
+        </p>
+    </div>
+
     <div class="result-panel">
         <h3>Cluster Nodes</h3>
         <form id="ha-form" onsubmit="event.preventDefault(); deployHA();" autocomplete="off">
