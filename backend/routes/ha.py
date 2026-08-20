@@ -17,7 +17,7 @@ ha_bp = Blueprint(
 #
 ANSIBLE_BIN = "/usr/bin/ansible"
 ANSIBLE_PLAYBOOK = "/usr/bin/ansible-playbook"
-HA_PROJECT = "/opt/pgaf"
+HA_PROJECT = "/opt/pg_sa/pgaf"
 HA_INVENTORY_FILE = f"{HA_PROJECT}/inventory/inventory.ini"
 
 # Separate log file from the standalone install's ansible.log — these are
