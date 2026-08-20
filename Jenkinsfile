@@ -27,6 +27,16 @@ pipeline {
             steps {
 
                 sh '''
+                echo "===== HOSTNAME ====="
+                hostname
+
+                echo "===== Linux USER ====="
+                whoami
+
+                echo "===== IP ADDRESS ====="
+                ip a
+
+                echo "===== CURRENT DIRECTORY ====="
                 pwd
                 ls -la
                 '''
