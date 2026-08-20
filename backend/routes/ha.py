@@ -26,23 +26,25 @@ HA_ANSIBLE_LOG = "/opt/pg_sa/backend/logs/ha_ansible.log"
 
 HA_REQUIRED_FIELDS = [
     "monitor_ip", "primary_ip", "standby1_ip", "standby2_ip",
-    "haproxy_pgbouncer_ip", "ssh_password"
+    "haproxy_pgbouncer_ip"
 ]
 
 
 def generate_ha_inventory(data):
     """
     Builds inventory.ini with monitor/primary/standby (2 fixed secondaries),
-    haproxy+pgbouncer (same node), and [all:vars] for SSH connection
-    details.
+    haproxy+pgbouncer (same node), and [all:vars]. No SSH password is
+    generated here — this assumes passwordless (key-based) SSH auth from
+    the Ansible controller to every node is already in place, matching
+    the original inventory.ini format (ansible_user=root, no
+    ansible_ssh_pass). The portal's Test Connectivity button verifies
+    that assumption before a real deploy runs.
     """
     monitor_ip = data["monitor_ip"]
     primary_ip = data["primary_ip"]
     standby1_ip = data["standby1_ip"]
     standby2_ip = data["standby2_ip"]
     haproxy_pgbouncer_ip = data["haproxy_pgbouncer_ip"]
-    ssh_user = data.get("ssh_user") or "root"
-    ssh_password = data["ssh_password"]
 
     inventory = f"""[monitor]
 {monitor_ip}
@@ -65,8 +67,7 @@ primary
 standby
 
 [all:vars]
-ansible_user={ssh_user}
-ansible_ssh_pass={ssh_password}
+ansible_user=root
 ansible_python_interpreter=/usr/bin/python3
 ansible_ssh_common_args='-o StrictHostKeyChecking=no'
 """
