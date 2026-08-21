@@ -3,11 +3,8 @@ version: "3.9"
 services:
 
   backend:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
 
-    image: pg-sa-backend:latest
+    image: gajender07070707/pg-sa-backend:${IMAGE_TAG}
 
     container_name: pg-sa-backend
 
@@ -35,11 +32,8 @@ services:
 
 
   frontend:
-    build:
-      context: .
-      dockerfile: frontend/Dockerfile
 
-    image: pg-sa-frontend:latest
+    image: gajender07070707/pg-sa-frontend:${IMAGE_TAG}
 
     container_name: pg-sa-frontend
 

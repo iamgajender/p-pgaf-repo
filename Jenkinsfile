@@ -7,10 +7,12 @@ pipeline {
         DOCKER_USER = "gajender07070707"
 
         BACKEND_IMAGE = "${DOCKER_USER}/pg-sa-backend"
-
         FRONTEND_IMAGE = "${DOCKER_USER}/pg-sa-frontend"
 
         IMAGE_TAG = "${BUILD_NUMBER}"
+
+        DEPLOY_HOST = "10.1.1.12"
+        DEPLOY_PATH = "/opt/pg_sa"
     }
 
     stages {
@@ -30,15 +32,14 @@ pipeline {
                 echo "===== HOSTNAME ====="
                 hostname
 
-                echo "===== Linux USER ====="
+                echo "===== USER ====="
                 whoami
-
-                echo "===== IP ADDRESS ====="
-                ip a
 
                 echo "===== CURRENT DIRECTORY ====="
                 pwd
-                ls -la
+
+                echo "===== WORKSPACE CONTENT ====="
+                ls -lah
                 '''
             }
         }
@@ -112,22 +113,56 @@ pipeline {
             }
         }
 
+        stage('Deploy To Server') {
+
+            steps {
+
+                sh """
+                ssh root@${DEPLOY_HOST} '
+
+                cd ${DEPLOY_PATH}
+
+                echo "IMAGE_TAG=${IMAGE_TAG}" > .env
+
+                docker compose pull
+
+                docker compose up -d
+
+                docker ps
+
+                '
+                """
+            }
+        }
     }
 
     post {
 
         success {
 
-            echo "CI Pipeline Completed Successfully"
+            echo "=================================="
+            echo "CI/CD PIPELINE COMPLETED"
+            echo "Build Number : ${BUILD_NUMBER}"
+            echo "Image Tag    : ${IMAGE_TAG}"
+            echo "=================================="
 
             sh '''
-            docker image ls | grep pg-sa
+            docker image ls | grep pg-sa || true
             '''
         }
 
         failure {
 
-            echo "CI Pipeline Failed"
+            echo "=================================="
+            echo "CI/CD PIPELINE FAILED"
+            echo "=================================="
+        }
+
+        always {
+
+            sh '''
+            docker image prune -f || true
+            '''
         }
     }
 }
