@@ -4,6 +4,45 @@ function escapeHtml(value) {
     return div.innerHTML;
 }
 
+// Ansible's `-m ping` output is one block per host, each starting with a
+// line like "10.1.1.242 | SUCCESS => {" or "10.1.1.153 | UNREACHABLE! => {".
+// Coloring the whole output block by overall pass/fail (the old behavior)
+// meant a single successful host's line still rendered in red whenever
+// ANY other host failed — this splits on that per-host header line and
+// colors each block independently, so SUCCESS lines are actually green
+// even when the run as a whole has failures.
+function formatPingOutput(rawOutput) {
+    if (!rawOutput.trim()) return "";
+
+    const hostBlockPattern = /^(\S+)\s\|\s(SUCCESS|UNREACHABLE!|FAILED!)/;
+    const lines = rawOutput.split("\n");
+    const blocks = [];
+    let current = null;
+
+    for (const line of lines) {
+        const match = line.match(hostBlockPattern);
+        if (match) {
+            if (current) blocks.push(current);
+            current = { status: match[2], lines: [line] };
+        } else if (current) {
+            current.lines.push(line);
+        } else {
+            // Content before the first host block (shouldn't normally
+            // happen, but keep it rather than silently drop it)
+            blocks.push({ status: null, lines: [line] });
+        }
+    }
+    if (current) blocks.push(current);
+
+    return blocks.map(block => {
+        const text = block.lines.join("\n");
+        const cssClass = block.status === "SUCCESS" ? "log-success"
+            : (block.status === "UNREACHABLE!" || block.status === "FAILED!") ? "log-error"
+            : "";
+        return `<pre class="${cssClass}" style="white-space:pre-wrap; margin:6px 0; font-family:inherit;">${escapeHtml(text)}</pre>`;
+    }).join("");
+}
+
 // A 404/500 from Flask often comes back as an HTML error page, not JSON
 // (e.g. the route doesn't exist because Flask wasn't restarted after a
 // deploy). response.json() throws a SyntaxError on that, which otherwise
@@ -23,9 +62,7 @@ function collectHAPayload() {
         standby1_ip: document.getElementById("standby1_ip").value.trim(),
         standby2_ip: document.getElementById("standby2_ip").value.trim(),
         haproxy_pgbouncer_ip: document.getElementById("haproxy_pgbouncer_ip").value.trim(),
-        postgres_version: document.getElementById("postgres_version").value,
-        ssh_user: document.getElementById("ssh_user").value.trim(),
-        ssh_password: document.getElementById("ssh_password").value
+        postgres_version: document.getElementById("postgres_version").value
     };
 }
 
@@ -58,8 +95,8 @@ async function testConnectivity() {
         });
         const result = await parseJsonSafely(response);
 
-        statusEl.className = "connection-status " + (result.status === "success" ? "log-success" : "log-error");
-        statusEl.textContent = `${result.message}\n\n${result.output || ""}`.trim();
+        statusEl.className = "connection-status";
+        statusEl.innerHTML = `<div>${escapeHtml(result.message)}</div>` + formatPingOutput(result.output || "");
     } catch (error) {
         console.error(error);
         statusEl.className = "connection-status log-error";

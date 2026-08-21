@@ -129,22 +129,8 @@
                 </div>
             </div>
 
-            <hr>
-
-            <div class="form-grid">
-                <div class="form-field">
-                    <label for="ssh_user">SSH Username</label>
-                    <input type="text" id="ssh_user" placeholder="root" value="root" required>
-                </div>
-
-                <div class="form-field">
-                    <label for="ssh_password">SSH Password</label>
-                    <input type="password" id="ssh_password" placeholder="••••••••"
-                           required autocomplete="new-password">
-                </div>
-            </div>
             <p class="field-hint">
-                Same SSH credentials are used for every node — monitor, primary, both secondaries, and HAProxy/PgBouncer.
+                Assumes passwordless SSH is already set up to every node above (see the notice at the top of this page).
             </p>
 
             <div id="connectivity-status" class="connection-status" hidden style="white-space:pre-wrap; font-family:var(--font-mono); font-size:0.8125rem;"></div>

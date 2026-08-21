@@ -5,6 +5,7 @@ from routes.standalone import standalone_bp
 from routes.deployment import deployment_bp
 from routes.users import users_bp
 from routes.roles import roles_bp
+from routes.ha import ha_bp
 
 
 app = Flask(__name__)
@@ -15,6 +16,7 @@ app.register_blueprint(standalone_bp)
 app.register_blueprint(deployment_bp)
 app.register_blueprint(users_bp)
 app.register_blueprint(roles_bp)
+app.register_blueprint(ha_bp)
 
 if __name__ == "__main__":
 
