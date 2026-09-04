@@ -11,7 +11,7 @@ pipeline {
 
         IMAGE_TAG = "${BUILD_NUMBER}"
 
-        DEPLOY_PATH = "/opt/pg_sa"
+        DEPLOY_PATH = "/home/jenkins/deployment/pg_sa/"
     }
 
     stages {
