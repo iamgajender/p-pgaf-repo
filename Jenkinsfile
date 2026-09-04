@@ -11,7 +11,7 @@ pipeline {
 
         IMAGE_TAG = "${BUILD_NUMBER}"
 
-        DEPLOY_HOST = "10.1.1.12"
+        DEPLOY_HOST = "10.1.1.178"
         DEPLOY_PATH = "/opt/pg_sa"
     }
 
