@@ -11,43 +11,30 @@ pipeline {
 
         IMAGE_TAG = "${BUILD_NUMBER}"
 
-        DEPLOY_HOST = "10.1.1.178"
         DEPLOY_PATH = "/opt/pg_sa"
     }
 
     stages {
 
         stage('Checkout') {
-
             steps {
                 checkout scm
             }
         }
 
         stage('Verify Workspace') {
-
             steps {
-
                 sh '''
-                echo "===== HOSTNAME ====="
                 hostname
-
-                echo "===== USER ====="
                 whoami
-
-                echo "===== CURRENT DIRECTORY ====="
                 pwd
-
-                echo "===== WORKSPACE CONTENT ====="
                 ls -lah
                 '''
             }
         }
 
         stage('Build Backend Image') {
-
             steps {
-
                 sh """
                 docker build \
                 -t ${BACKEND_IMAGE}:${IMAGE_TAG} \
@@ -58,9 +45,7 @@ pipeline {
         }
 
         stage('Build Frontend Image') {
-
             steps {
-
                 sh """
                 docker build \
                 -t ${FRONTEND_IMAGE}:${IMAGE_TAG} \
@@ -71,7 +56,6 @@ pipeline {
         }
 
         stage('DockerHub Login') {
-
             steps {
 
                 withCredentials([
@@ -92,9 +76,7 @@ pipeline {
         }
 
         stage('Push Backend Image') {
-
             steps {
-
                 sh """
                 docker push ${BACKEND_IMAGE}:${IMAGE_TAG}
                 docker push ${BACKEND_IMAGE}:latest
@@ -103,9 +85,7 @@ pipeline {
         }
 
         stage('Push Frontend Image') {
-
             steps {
-
                 sh """
                 docker push ${FRONTEND_IMAGE}:${IMAGE_TAG}
                 docker push ${FRONTEND_IMAGE}:latest
@@ -113,13 +93,10 @@ pipeline {
             }
         }
 
-        stage('Deploy To Server') {
-
+        stage('Deploy Locally') {
             steps {
 
                 sh """
-                ssh root@${DEPLOY_HOST} '
-
                 cd ${DEPLOY_PATH}
 
                 echo "IMAGE_TAG=${IMAGE_TAG}" > .env
@@ -129,9 +106,18 @@ pipeline {
                 docker compose up -d
 
                 docker ps
-
-                '
                 """
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+
+                sh '''
+                sleep 20
+
+                curl -f http://localhost || exit 1
+                '''
             }
         }
     }
@@ -141,20 +127,16 @@ pipeline {
         success {
 
             echo "=================================="
-            echo "CI/CD PIPELINE COMPLETED"
+            echo "DEPLOYMENT SUCCESSFUL"
             echo "Build Number : ${BUILD_NUMBER}"
             echo "Image Tag    : ${IMAGE_TAG}"
             echo "=================================="
-
-            sh '''
-            docker image ls | grep pg-sa || true
-            '''
         }
 
         failure {
 
             echo "=================================="
-            echo "CI/CD PIPELINE FAILED"
+            echo "DEPLOYMENT FAILED"
             echo "=================================="
         }
 
